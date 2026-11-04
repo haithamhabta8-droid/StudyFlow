@@ -24,6 +24,8 @@ import {
   Key,
   ExternalLink,
   Cpu,
+  ShieldCheck,
+  FileText,
 } from 'lucide-react';
 import { AppSettings, AppState, UserProfile } from '../types/index.ts';
 import { PRIMARY_COLORS, exportAppState } from '../utils/storage.ts';
@@ -187,7 +189,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     setIsTestingKey(true);
     setTestResult(null);
 
-    const res = await testGeminiApiKey(keyToTest);
+    const res = await testGeminiApiKey(keyToTest, selectedModel);
     setIsTestingKey(false);
 
     if (res.success) {
@@ -631,19 +633,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {[
               {
-                id: 'gemini-2.5-flash',
-                name: 'Gemini 2.5 Flash',
-                desc: lang === 'ar' ? 'فائق السرعة (موصى به)' : 'Fast & Recommended',
+                id: 'gemini-3.8-flash',
+                name: 'Gemini 3.8 Flash',
+                desc: lang === 'ar' ? 'أحدث جيل فائق السرعة (موصى به)' : 'Latest & Recommended',
               },
               {
-                id: 'gemini-2.5-pro',
-                name: 'Gemini 2.5 Pro',
-                desc: lang === 'ar' ? 'تفكير عميق واستنتاج' : 'Deep Reasoning',
+                id: 'gemini-4-argon',
+                name: 'Gemini 4 Argon',
+                desc: lang === 'ar' ? 'تفكير عميق ودقة فائقة' : 'Deep Reasoning & Accuracy',
               },
               {
-                id: 'gemini-1.5-flash',
-                name: 'Gemini 1.5 Flash',
-                desc: lang === 'ar' ? 'مستقر وخفيف' : 'Standard Fast',
+                id: 'gemini-3.1-flash-lite',
+                name: 'Gemini 3.1 Flash Lite',
+                desc: lang === 'ar' ? 'خفيف وسريع جداً' : 'Lightweight & Ultra Fast',
               },
             ].map((m) => {
               const isSelected = selectedModel === m.id;
@@ -1058,6 +1060,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <span className="text-[10px] text-[#8c909e] block text-center mt-2">
             {t('deleteDataWarning', lang)}
           </span>
+        </div>
+      </div>
+
+      {/* 8. Legal, Privacy & Compliance */}
+      <div className="p-6 rounded-2xl bg-[#0b0c10] border border-[#1a1b22] space-y-4 shadow-lg">
+        <div className="flex items-center justify-between">
+          <h3 className="font-extrabold text-sm text-[#f3f4f6] flex items-center gap-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-400" />
+            <span>{lang === 'ar' ? 'السياسات وشروط الخدمة' : 'Policies & Legal Compliance'}</span>
+          </h3>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+            {lang === 'ar' ? 'متوافق مع Google' : 'Google API Compliant'}
+          </span>
+        </div>
+        <p className="text-xs text-[#8c909e] leading-relaxed">
+          {lang === 'ar'
+            ? 'تلتزم StudyFlow بحماية خصوصية بياناتك الدراسية وتخزينها بشكل محلي وفي مساحة Google Drive المخصصة لتطبيقك فقط بدون مشاركتها مع أي طرف خارجي.'
+            : 'StudyFlow complies with Google API User Data Policies. Your flashcards and study statistics are stored locally and within your private Google Drive appDataFolder.'}
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <a
+            href="./privacy.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-[#121318] border border-[#20222a] hover:border-purple-500/40 text-xs font-semibold text-[#f3f4f6] group transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
+              <div>
+                <span className="block font-bold text-xs">{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</span>
+                <span className="block text-[10px] text-[#8c909e]">privacy.html</span>
+              </div>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-[#8c909e] group-hover:text-purple-400 transition-colors" />
+          </a>
+
+          <a
+            href="./terms.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-between p-3.5 rounded-xl bg-[#121318] border border-[#20222a] hover:border-purple-500/40 text-xs font-semibold text-[#f3f4f6] group transition-all"
+          >
+            <div className="flex items-center gap-2.5">
+              <FileText className="w-4 h-4 text-teal-400 group-hover:scale-110 transition-transform" />
+              <div>
+                <span className="block font-bold text-xs">{lang === 'ar' ? 'شروط الخدمة' : 'Terms of Service'}</span>
+                <span className="block text-[10px] text-[#8c909e]">terms.html</span>
+              </div>
+            </div>
+            <ExternalLink className="w-3.5 h-3.5 text-[#8c909e] group-hover:text-teal-400 transition-colors" />
+          </a>
         </div>
       </div>
     </div>

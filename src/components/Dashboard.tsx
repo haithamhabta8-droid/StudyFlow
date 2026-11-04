@@ -361,7 +361,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       </h3>
                     </div>
                     <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                      Gemini 2.5 Flash
+                      {state.settings.model?.includes('4') ? 'Gemini 4 Argon' : state.settings.model?.includes('lite') ? 'Gemini 3.1 Flash Lite' : 'Gemini 3.8 Flash'}
                     </span>
                   </div>
 

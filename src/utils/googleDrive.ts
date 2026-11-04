@@ -93,7 +93,11 @@ export function requestGoogleAccessToken(): Promise<string> {
         scope: DRIVE_SCOPES,
         callback: (resp: TokenResponse) => {
           if (resp.error) {
-            reject(new Error(resp.error_description || resp.error));
+            let msg = resp.error_description || resp.error;
+            if (resp.error === 'access_denied') {
+              msg = 'Access blocked (403): App is in Google Cloud Testing mode. Add your email as a Test User in Google Cloud Console or Publish the app.';
+            }
+            reject(new Error(msg));
             return;
           }
           if (resp.access_token) {

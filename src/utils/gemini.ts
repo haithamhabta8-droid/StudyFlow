@@ -4,7 +4,30 @@
  */
 
 export const GEMINI_API_KEY_STORAGE = 'gemini_api_key';
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.8-flash';
+
+/**
+ * Converts technical API error strings into clean, user-friendly feedback
+ */
+export function formatUserFriendlyGeminiError(rawError: string, status?: number): string {
+  const err = (rawError || '').toLowerCase();
+
+  if (err.includes('api_key_invalid') || err.includes('not valid') || err.includes('invalid api key') || (status === 400 && err.includes('key'))) {
+    return 'Invalid API key. Please verify that you copied the complete key from Google AI Studio.';
+  }
+  if (err.includes('quota') || err.includes('resource_exhausted') || status === 429) {
+    return 'Daily API limit reached. Please wait a short while or check your Google AI Studio plan.';
+  }
+  if (err.includes('network') || err.includes('failed to fetch') || err.includes('cors')) {
+    return 'Connection issue. Please check your internet connection.';
+  }
+  if (err.includes('not found') || err.includes('is no longer available')) {
+    return 'Model updated to latest version (Gemini 3.8 Flash). Please test again.';
+  }
+
+  // Friendly human-readable fallback (no raw JSON or developer links)
+  return 'Could not verify API key. Please check your key at Google AI Studio.';
+}
 
 export function getGeminiApiKey(): string {
   try {
@@ -27,42 +50,68 @@ export function setGeminiApiKey(key: string): void {
 }
 
 /**
- * Validates a Gemini API key by making a minimal test call
+ * Validates a Gemini API key by making a test call with automatic model fallback
  */
-export async function testGeminiApiKey(key: string): Promise<{ success: boolean; error?: string }> {
+export async function testGeminiApiKey(
+  key: string,
+  modelToTest: string = DEFAULT_GEMINI_MODEL
+): Promise<{ success: boolean; error?: string }> {
   if (!key.trim()) {
     return { success: false, error: 'Please enter an API key.' };
   }
 
-  try {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${DEFAULT_GEMINI_MODEL}:generateContent?key=${key.trim()}`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [{ text: 'Respond with the single word "OK"' }],
-          },
-        ],
-        generationConfig: {
-          maxOutputTokens: 10,
+  // List of models to try in order
+  const candidateModels = [
+    modelToTest,
+    'gemini-3.8-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-latest',
+  ].filter((m, i, arr) => m && arr.indexOf(m) === i);
+
+  let lastError = '';
+  let lastStatus = 0;
+
+  for (const model of candidateModels) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key.trim()}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [{ text: 'Hello' }],
+            },
+          ],
+          generationConfig: {
+            maxOutputTokens: 5,
+          },
+        }),
+      });
 
-    if (!res.ok) {
+      if (res.ok) {
+        return { success: true };
+      }
+
+      lastStatus = res.status;
       const errJson = await res.json().catch(() => null);
-      const msg = errJson?.error?.message || `HTTP ${res.status} error`;
-      return { success: false, error: msg };
-    }
+      lastError = errJson?.error?.message || `HTTP ${res.status}`;
 
-    return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err?.message || 'Network error connecting to Gemini API.' };
+      // If it's a key issue (invalid key), don't try other models—it's invalid
+      if (lastError.toLowerCase().includes('api_key_invalid') || lastError.toLowerCase().includes('not valid')) {
+        break;
+      }
+    } catch (err: any) {
+      lastError = err?.message || 'Network error';
+    }
   }
+
+  return {
+    success: false,
+    error: formatUserFriendlyGeminiError(lastError, lastStatus),
+  };
 }
 
 /**
@@ -115,11 +164,8 @@ export async function generateWithGemini(
 
   if (!res.ok) {
     const errJson = await res.json().catch(() => null);
-    const msg = errJson?.error?.message || `Gemini API error (Status ${res.status})`;
-    if (res.status === 400 || res.status === 403) {
-      throw new Error(`API Key invalid or quota exceeded: ${msg}`);
-    }
-    throw new Error(msg);
+    const msg = errJson?.error?.message || `Status ${res.status}`;
+    throw new Error(formatUserFriendlyGeminiError(msg, res.status));
   }
 
   const data = await res.json();
