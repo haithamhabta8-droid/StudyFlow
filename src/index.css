@@ -1,0 +1,159 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #0a0a1a;
+  --surface: #12122a;
+  --surface-2: #1c1c3a;
+  --surface-3: #242448;
+  --border: #2a2a4a;
+  --text: #e8e8f0;
+  --text-muted: #8888a8;
+  --text-dim: #5a5a78;
+  --primary: #7c5cfc;
+  --primary-glow: rgba(124, 92, 252, 0.35);
+  --accent: #00d4aa;
+  --accent-glow: rgba(0, 212, 170, 0.2);
+  --danger: #ff4d6a;
+  --warning: #ffb347;
+  --info: #4da6ff;
+  --radius: 16px;
+  --radius-sm: 10px;
+  --capsule-bg: rgba(136, 136, 168, 0.12);
+  --capsule-border: rgba(136, 136, 168, 0.2);
+}
+
+html.light {
+  --bg: #f5f6fb;
+  --surface: #ffffff;
+  --surface-2: #f0f2f8;
+  --surface-3: #e5e8f2;
+  --border: #e0e3ee;
+  --text: #141726;
+  --text-muted: #5f6579;
+  --text-dim: #8b92a5;
+  --capsule-bg: rgba(20, 23, 38, 0.05);
+  --capsule-border: rgba(20, 23, 38, 0.1);
+}
+
+html.light .bg-\[\#0a0a1a\] {
+  background-color: var(--bg) !important;
+}
+html.light .bg-\[\#12122a\] {
+  background-color: var(--surface) !important;
+}
+html.light .bg-\[\#1c1c3a\] {
+  background-color: var(--surface-2) !important;
+}
+html.light .bg-\[\#242448\] {
+  background-color: var(--surface-3) !important;
+}
+html.light .border-\[\#2a2a4a\] {
+  border-color: var(--border) !important;
+}
+html.light .border-\[\#2a2a4a\]\/40,
+html.light .border-\[\#2a2a4a\]\/50,
+html.light .border-\[\#2a2a4a\]\/80 {
+  border-color: var(--border) !important;
+}
+html.light .text-\[\#e8e8f0\] {
+  color: var(--text) !important;
+}
+html.light .text-\[\#8888a8\] {
+  color: var(--text-muted) !important;
+}
+html.light .text-\[\#5a5a78\] {
+  color: var(--text-dim) !important;
+}
+
+/* OLED Black Mode */
+html.black {
+  --bg: #000000;
+  --surface: #0a0a0d;
+  --surface-2: #111116;
+  --surface-3: #17181f;
+  --border: #1d1e26;
+  --text: #f3f4f6;
+  --text-muted: #9194a3;
+  --text-dim: #565969;
+  --capsule-bg: rgba(255, 255, 255, 0.05);
+  --capsule-border: rgba(255, 255, 255, 0.1);
+}
+
+html.black .bg-\[\#0a0a1a\] {
+  background-color: var(--bg) !important;
+}
+html.black .bg-\[\#12122a\] {
+  background-color: var(--surface) !important;
+}
+html.black .bg-\[\#1c1c3a\] {
+  background-color: var(--surface-2) !important;
+}
+html.black .bg-\[\#242448\] {
+  background-color: var(--surface-3) !important;
+}
+html.black .border-\[\#2a2a4a\] {
+  border-color: var(--border) !important;
+}
+html.black .border-\[\#2a2a4a\]\/40,
+html.black .border-\[\#2a2a4a\]\/50,
+html.black .border-\[\#2a2a4a\]\/80 {
+  border-color: var(--border) !important;
+}
+html.black .text-\[\#e8e8f0\] {
+  color: var(--text) !important;
+}
+html.black .text-\[\#8888a8\] {
+  color: var(--text-muted) !important;
+}
+html.black .text-\[\#5a5a78\] {
+  color: var(--text-dim) !important;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Tajawal', 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html[dir="ltr"] body {
+  font-family: 'Inter', 'Tajawal', system-ui, -apple-system, sans-serif;
+}
+
+/* Custom subtle scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* 3D Flip Card utility */
+.perspective-1000 {
+  perspective: 1000px;
+}
+.transform-style-3d {
+  transform-style: preserve-3d;
+}
+.backface-hidden {
+  backface-visibility: hidden;
+}
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}

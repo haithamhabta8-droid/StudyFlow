@@ -1,0 +1,222 @@
+import React, { useState } from 'react';
+import { X, Sparkles, AlertCircle, ArrowUpRight } from 'lucide-react';
+import { Card, Category } from '../../types/index.ts';
+import { t } from '../../utils/translations.ts';
+import { getGeminiApiKey, generateFlashcardsWithAI } from '../../utils/gemini.ts';
+
+interface GenerateModalProps {
+  isOpen: boolean;
+  categories: Category[];
+  currentCatId: string | null;
+  lang: 'ar' | 'en';
+  onClose: () => void;
+  onOpenSettings?: () => void;
+  onGenerated: (categoryId: string, deckName: string, cards: Card[]) => void;
+}
+
+export const GenerateModal: React.FC<GenerateModalProps> = ({
+  isOpen,
+  categories,
+  currentCatId,
+  lang,
+  onClose,
+  onOpenSettings,
+  onGenerated,
+}) => {
+  const [selectedCatId, setSelectedCatId] = useState<string>(
+    currentCatId || categories[0]?.id || ''
+  );
+  const [deckName, setDeckName] = useState('');
+  const [text, setText] = useState('');
+  const [cardCount, setCardCount] = useState<number>(5);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  if (!isOpen) return null;
+
+  const apiKey = getGeminiApiKey();
+
+  const handleGenerate = async () => {
+    if (!text.trim() || !selectedCatId) return;
+
+    setErrorMsg(null);
+    setIsGenerating(true);
+
+    const finalDeckName =
+      deckName.trim() || (lang === 'ar' ? 'توليد ذكي (Gemini)' : 'AI Generated Deck (Gemini)');
+
+    if (apiKey) {
+      try {
+        const aiCards = await generateFlashcardsWithAI(text, cardCount, lang);
+        const formatted: Card[] = aiCards.map((c) => ({
+          id: Math.random().toString(36).slice(2, 9),
+          q: c.q,
+          a: c.a,
+          status: 'new',
+          reviews: 0,
+          lastReviewed: Date.now(),
+        }));
+
+        onGenerated(selectedCatId, finalDeckName, formatted);
+        setIsGenerating(false);
+        setText('');
+        setDeckName('');
+        onClose();
+        return;
+      } catch (err: any) {
+        console.warn('Gemini generation failed, falling back:', err);
+        setErrorMsg(err?.message || 'Gemini error. Please check your API key.');
+        setIsGenerating(false);
+        return;
+      }
+    }
+
+    // If no API key configured, show prompt as requested
+    setErrorMsg(t('pleaseAddKey', lang));
+    setIsGenerating(false);
+  };
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+    >
+      <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-purple-400" />
+            <h3 className="font-extrabold text-base text-[#e8e8f0]">
+              {t('generateCardsTitle', lang)}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#8888a8] hover:text-white"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <p className="text-xs text-[#8888a8] leading-relaxed">
+          {t('generateCardsSub', lang)}
+        </p>
+
+        {/* API Key Status Notice */}
+        {!apiKey ? (
+          <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-between gap-3 text-xs">
+            <div className="flex items-center gap-2 text-purple-200">
+              <AlertCircle className="w-4 h-4 text-purple-400 shrink-0" />
+              <span>{t('pleaseAddKey', lang)}</span>
+            </div>
+            {onOpenSettings && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenSettings();
+                }}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[11px] shrink-0"
+              >
+                <span>{t('settings', lang)}</span>
+                <ArrowUpRight className="w-3 h-3" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="text-[11px] text-teal-400 font-medium flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
+            <span>Gemini BYOK Active (gemini-2.5-flash)</span>
+          </div>
+        )}
+
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{errorMsg}</span>
+          </div>
+        )}
+
+        <div className="space-y-3.5">
+          <div>
+            <label className="text-xs font-bold text-[#8888a8] block mb-1">
+              {t('categories', lang)}
+            </label>
+            <select
+              value={selectedCatId}
+              onChange={(e) => setSelectedCatId(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs font-semibold text-[#e8e8f0] focus:outline-none focus:border-purple-500"
+            >
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {lang === 'ar' ? c.name : c.nameEn || c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-[#8888a8] block mb-1">
+              {t('deckName', lang)}
+            </label>
+            <input
+              type="text"
+              value={deckName}
+              onChange={(e) => setDeckName(e.target.value)}
+              placeholder="e.g., Photosynthesis & Energy Transfer"
+              className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-semibold"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-[#8888a8] block mb-1">
+              {t('orPasteText', lang)}
+            </label>
+            <textarea
+              rows={4}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              placeholder="Paste lecture notes, book summaries, or definitions here..."
+              className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 resize-none leading-relaxed"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold text-[#8888a8] block mb-1">
+              {t('numCards', lang)}
+            </label>
+            <select
+              value={cardCount}
+              onChange={(e) => setCardCount(Number(e.target.value))}
+              className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs font-semibold text-[#e8e8f0] focus:outline-none focus:border-purple-500"
+            >
+              <option value={5}>5 Cards</option>
+              <option value={10}>10 Cards</option>
+              <option value={20}>20 Cards</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl bg-[#1c1c3a] text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0]"
+          >
+            {t('cancel', lang)}
+          </button>
+          <button
+            type="button"
+            disabled={isGenerating || !text.trim()}
+            onClick={handleGenerate}
+            className="flex items-center gap-2 px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all"
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>{isGenerating ? 'Generating with Gemini...' : t('generate', lang)}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

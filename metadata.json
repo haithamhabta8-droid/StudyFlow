@@ -1,0 +1,6 @@
+{
+  "name": "StudyFlow",
+  "description": "A comprehensive, responsive study hub featuring spaced-repetition flashcards, pomodoro timer, mind maps, quizzes, and habit tracking.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
