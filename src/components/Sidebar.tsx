@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   FolderPlus,
   Pin,
@@ -10,6 +10,11 @@ import {
   LayoutDashboard,
   Search,
   Sparkles,
+  Calendar,
+  ChevronUp,
+  ChevronDown,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 import { Category, UserProfile } from '../types/index.ts';
 import { t } from '../utils/translations.ts';
@@ -27,12 +32,14 @@ interface SidebarProps {
   onOpenNewCategory: () => void;
   onTogglePin: (id: string) => void;
   onDeleteCategory: (id: string) => void;
+  onReorderCategories?: (categories: Category[]) => void;
   onGoHome: () => void;
   onOpenSearch: () => void;
   onOpenProfile: () => void;
   onOpenSettings: () => void;
   onToggleCollapseDesktop: () => void;
   onCloseMobile: () => void;
+  onOpenTimeline?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -48,16 +55,31 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenNewCategory,
   onTogglePin,
   onDeleteCategory,
+  onReorderCategories,
   onGoHome,
   onOpenSearch,
   onOpenProfile,
   onOpenSettings,
   onToggleCollapseDesktop,
   onCloseMobile,
+  onOpenTimeline,
 }) => {
   const isRTL = lang === 'ar';
+  const [catToDelete, setCatToDelete] = useState<Category | null>(null);
 
   const pinnedCategories = categories.filter((c) => pinnedIds.includes(c.id));
+
+  const handleMoveCategory = (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= categories.length) return;
+    const next = [...categories];
+    const temp = next[index];
+    next[index] = next[targetIdx];
+    next[targetIdx] = temp;
+    if (onReorderCategories) {
+      onReorderCategories(next);
+    }
+  };
 
   return (
     <>
@@ -133,6 +155,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Action Button */}
         <div className="p-3 shrink-0">
           <button
+            data-tour="new-category"
             onClick={onOpenNewCategory}
             className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-purple-600/20 via-purple-600/30 to-teal-500/20 hover:from-purple-600/30 hover:to-teal-500/30 border border-purple-500/30 text-[#e8e8f0] font-bold text-sm shadow-md shadow-purple-900/20 hover:shadow-purple-700/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
           >
@@ -144,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Navigation / Scrollable Area */}
         <div className="flex-1 overflow-y-auto px-3 py-1 space-y-4">
           {/* Dashboard Home Shortcut */}
-          <div>
+          <div className="space-y-1">
             <button
               onClick={onGoHome}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
@@ -156,6 +179,20 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <LayoutDashboard className="w-4 h-4 text-purple-400 shrink-0" />
               <span className="flex-1 text-start">{t('home', lang)}</span>
             </button>
+
+            {onOpenTimeline && (
+              <button
+                onClick={onOpenTimeline}
+                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+                  currentTab === 'timeline'
+                    ? 'bg-purple-600/20 text-purple-300 border border-purple-500/30'
+                    : 'text-[#8888a8] hover:bg-[#1c1c3a] hover:text-[#e8e8f0]'
+                }`}
+              >
+                <Calendar className="w-4 h-4 text-purple-400 shrink-0" />
+                <span className="flex-1 text-start">{lang === 'ar' ? 'الجدول والتقويم' : 'Timeline & Calendar'}</span>
+              </button>
+            )}
           </div>
 
           {/* Pinned Section */}
@@ -258,8 +295,37 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         {lang === 'ar' ? cat.name : cat.nameEn || cat.name}
                       </span>
 
-                      {/* Hover Actions */}
-                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      {/* Hover & Touch Actions: Reorder, Pin, Delete */}
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Reorder Up */}
+                        <button
+                          type="button"
+                          disabled={categories.indexOf(cat) === 0}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveCategory(categories.indexOf(cat), -1);
+                          }}
+                          title={lang === 'ar' ? 'تحريك للأعلى' : 'Move up'}
+                          className="p-1 hover:text-white disabled:opacity-20 text-[#8888a8] transition-colors"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Reorder Down */}
+                        <button
+                          type="button"
+                          disabled={categories.indexOf(cat) === categories.length - 1}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMoveCategory(categories.indexOf(cat), 1);
+                          }}
+                          title={lang === 'ar' ? 'تحريك للأسفل' : 'Move down'}
+                          className="p-1 hover:text-white disabled:opacity-20 text-[#8888a8] transition-colors"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+
+                        {/* Pin Button */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -267,7 +333,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           }}
                           title={isPinned ? t('unpin', lang) : t('pin', lang)}
                           aria-label={isPinned ? t('unpin', lang) : t('pin', lang)}
-                          className="p-1 hover:text-purple-400 transition-colors"
+                          className="p-1 hover:text-purple-400 text-[#8888a8] transition-colors"
                         >
                           <Pin
                             className={`w-3.5 h-3.5 ${
@@ -275,16 +341,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             }`}
                           />
                         </button>
+
+                        {/* In-app Delete Trigger */}
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (window.confirm(t('deleteConfirm', lang))) {
-                              onDeleteCategory(cat.id);
-                            }
+                            setCatToDelete(cat);
                           }}
-                          title="Delete"
+                          title={lang === 'ar' ? 'حذف المادة' : 'Delete Category'}
                           aria-label="Delete Category"
-                          className="p-1 hover:text-rose-400 transition-colors"
+                          className="p-1 hover:text-rose-400 text-[#8888a8] transition-colors"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -301,45 +367,85 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Footer / User Profile */}
+        {/* Footer / User Profile (Clean single profile button, duplicate settings removed) */}
         <div className="p-3 border-t border-[#2a2a4a] bg-[#12122a] shrink-0">
-          <div className="flex items-center justify-between p-2 rounded-xl hover:bg-[#1c1c3a] transition-colors">
-            <button
-              onClick={onOpenProfile}
-              className="flex items-center gap-3 min-w-0 flex-1 text-start focus:outline-none"
-            >
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-500 to-teal-400 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden shadow-inner">
-                {profile.avatar ? (
-                  <img
-                    src={profile.avatar}
-                    alt={profile.name || 'User'}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  profile.name?.charAt(0).toUpperCase() || <User className="w-4 h-4" />
-                )}
+          <button
+            onClick={onOpenProfile}
+            className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#1c1c3a] transition-colors text-start focus:outline-none"
+          >
+            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-purple-500 to-teal-400 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden shadow-inner">
+              {profile.avatar ? (
+                <img
+                  src={profile.avatar}
+                  alt={profile.name || 'User'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                profile.name?.charAt(0).toUpperCase() || <User className="w-4 h-4" />
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-bold text-[#e8e8f0] truncate">
+                {profile.name || (lang === 'ar' ? 'طالب ذكي' : 'Student')}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-bold text-[#e8e8f0] truncate">
-                  {profile.name || (lang === 'ar' ? 'طالب ذكي' : 'Student')}
-                </div>
-                <div className="text-[11px] text-[#8888a8] truncate">
-                  {profile.email || t('profile', lang)}
-                </div>
+              <div className="text-[11px] text-[#8888a8] truncate">
+                {profile.email || t('profile', lang)}
               </div>
-            </button>
-
-            <button
-              onClick={onOpenSettings}
-              title={t('settings', lang)}
-              aria-label={t('settings', lang)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] hover:bg-[#242448] transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-          </div>
+            </div>
+          </button>
         </div>
       </aside>
+
+      {/* In-App Category Delete Confirmation Dialog (Never blocked by iframe/sandboxes) */}
+      {catToDelete && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
+        >
+          <div className="bg-[#12122a] border border-rose-500/40 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center gap-3 text-rose-400">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-400" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-[#e8e8f0]">
+                  {lang === 'ar' ? 'حذف التصنيف' : 'Delete Category'}
+                </h3>
+                <span className="text-xs text-rose-300/90 font-medium">
+                  {lang === 'ar' ? catToDelete.name : catToDelete.nameEn || catToDelete.name}
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#8888a8] leading-relaxed">
+              {lang === 'ar'
+                ? 'هل أنت متأكد من حذف هذا التصنيف نهائياً؟ سيتم حذف جميع الأدراج والبطاقات والمهام والاختبارات التابعة له.'
+                : 'Are you sure you want to delete this category? All its decks, flashcards, tasks, and notes will be permanently removed.'}
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#2a2a4a]">
+              <button
+                type="button"
+                onClick={() => setCatToDelete(null)}
+                className="px-4 py-2 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] text-xs font-bold text-[#e8e8f0] transition-colors"
+              >
+                {t('cancel', lang)}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onDeleteCategory(catToDelete.id);
+                  setCatToDelete(null);
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-xs font-bold text-white shadow-md shadow-rose-900/30 transition-colors"
+              >
+                {lang === 'ar' ? 'نعم، حذف نهائي' : 'Yes, Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -32,6 +32,7 @@ interface HeaderProps {
   onOpenSettings: () => void;
   onToggleLang: () => void;
   onSwitchTab: (tab: string) => void;
+  onOpenTimeline?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -48,7 +49,25 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenSettings,
   onToggleLang,
   onSwitchTab,
+  onOpenTimeline,
 }) => {
+  const [isOnline, setIsOnline] = React.useState(() =>
+    typeof navigator !== 'undefined' ? navigator.onLine : true
+  );
+
+  React.useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
   const tabs: { id: string; labelKey: TranslationKey; icon: React.ReactNode }[] = [
     { id: 'overview', labelKey: 'tabOverview', icon: <BarChart3 className="w-4 h-4" /> },
     { id: 'cards', labelKey: 'tabCards', icon: <Layers className="w-4 h-4" /> },
@@ -153,6 +172,39 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right / End Zone: Badges & Controls */}
         <div className="flex items-center gap-2 ms-auto lg:ms-0">
+          {/* Live Online / Offline Network Badge */}
+          <div
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+              isOnline
+                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+            }`}
+            title={
+              isOnline
+                ? 'Online: connected and live'
+                : 'Offline: cached schedule available'
+            }
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${
+                isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
+              }`}
+            />
+            <span className="text-[11px] font-semibold">{isOnline ? 'Online' : 'Offline'}</span>
+          </div>
+
+          {/* Timeline / Calendar Shortcut */}
+          {onOpenTimeline && (
+            <button
+              onClick={onOpenTimeline}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 text-xs font-bold text-[#e8e8f0] transition-colors"
+              title="Timeline & Google Calendar"
+            >
+              <Calendar className="w-3.5 h-3.5 text-purple-400" />
+              <span className="hidden sm:inline">{lang === 'ar' ? 'الجدول' : 'Timeline'}</span>
+            </button>
+          )}
+
           {/* Streak Flame Badge */}
           <button
             onClick={onOpenStreakModal}
@@ -174,15 +226,6 @@ export const Header: React.FC<HeaderProps> = ({
             <span className="text-[11px] font-medium">{t('streakShort', lang)}</span>
           </button>
 
-          {/* Language Toggle (AR / EN) */}
-          <button
-            onClick={onToggleLang}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 text-xs font-bold text-[#e8e8f0] transition-colors"
-            title="Language"
-          >
-            <Globe className="w-3.5 h-3.5 text-purple-400" />
-            <span>{lang === 'ar' ? 'English' : 'العربية'}</span>
-          </button>
 
           {/* Quick Settings Shortcut */}
           <button

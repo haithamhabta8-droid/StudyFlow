@@ -28,7 +28,9 @@ export const PRIMARY_COLORS = [
   '#f97316', // Orange
   '#f59e0b', // Amber / Gold
   '#84cc16', // Lime
-  '#22c55e', // Green (Active in screenshot)
+  '#22c55e', // Green
+  '#065f46', // Dark Green
+  '#15803d', // Forest Green
   '#10b981', // Mint Teal
   '#06b6d4', // Cyan
   '#0ea5e9', // Sky Blue

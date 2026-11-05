@@ -153,6 +153,20 @@ export interface AppSettings {
   aiTokensToday: number;
   models?: AIModelConfig[];
   activeModelId?: string;
+  pomoWorkMinutes?: number;
+}
+
+export interface CalendarEventItem {
+  id: string;
+  title: string;
+  description?: string;
+  startTime: number; // timestamp in ms
+  endTime: number;   // timestamp in ms
+  location?: string;
+  completed?: boolean;
+  completedAt?: number;
+  source: 'google' | 'manual';
+  color?: string;
 }
 
 export interface AppState {
@@ -161,4 +175,7 @@ export interface AppState {
   profile: UserProfile;
   settings: AppSettings;
   breakHistory: number[];
+  calendarEvents?: CalendarEventItem[];
+  studiedDates?: string[]; // Array of YYYY-MM-DD
+  lastCalendarSync?: number;
 }

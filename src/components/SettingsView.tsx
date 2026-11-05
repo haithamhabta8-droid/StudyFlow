@@ -37,7 +37,9 @@ import {
   restoreBackupFromDrive,
   revokeGoogleAccess,
   getStoredAccessToken,
+  setStoredAccessToken,
 } from '../utils/googleDrive.ts';
+import { DeleteAccountChallengeModal } from './modals/DeleteAccountChallengeModal.tsx';
 import {
   getGeminiApiKey,
   setGeminiApiKey,
@@ -148,21 +150,47 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   };
 
   // Gemini AI Handlers
-  const handleSaveApiKey = () => {
+  const handleSaveApiKey = async () => {
     const trimmed = apiKeyInput.trim();
-    setGeminiApiKey(trimmed);
-    onUpdateSettings({
-      apiKey: trimmed,
-      model: selectedModel,
-    });
-    setTestResult({
-      success: true,
-      message:
-        lang === 'ar'
-          ? 'تم حفظ مفتاح API بنجاح ومزامنته محلياً.'
-          : 'Gemini API key saved successfully.',
-    });
-    setTimeout(() => setTestResult(null), 4000);
+    if (!trimmed) {
+      setTestResult({
+        success: false,
+        message: lang === 'ar' ? 'يرجى إدخال مفتاح API أولاً.' : 'Please enter an API key.',
+      });
+      return;
+    }
+
+    setIsTestingKey(true);
+    setTestResult(null);
+
+    // Validate key with Gemini before accepting and saving
+    const res = await testGeminiApiKey(trimmed, selectedModel);
+    setIsTestingKey(false);
+
+    if (res.success) {
+      setGeminiApiKey(trimmed);
+      onUpdateSettings({
+        apiKey: trimmed,
+        model: selectedModel,
+      });
+      setTestResult({
+        success: true,
+        message:
+          lang === 'ar'
+            ? '✓ تم التحقق من مفتاح Google Gemini وحفظه بنجاح وهو صالح وجاهز للاستخدام!'
+            : '✓ Google Gemini API key verified and saved successfully! Valid and working.',
+      });
+      setTimeout(() => setTestResult(null), 5000);
+    } else {
+      setTestResult({
+        success: false,
+        message:
+          res.error ||
+          (lang === 'ar'
+            ? 'مفتاح API غير صالح أو خاطئ! يرجى الحصول على مفتاح صحيح من Google AI Studio والمحاولة مجدداً.'
+            : 'Invalid or incorrect API key! Please check your key from Google AI Studio and enter a real, valid one.'),
+      });
+    }
   };
 
   const handleClearApiKey = () => {

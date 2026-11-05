@@ -17,28 +17,32 @@ export const GradesView: React.FC<GradesViewProps> = ({
 }) => {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [title, setTitle] = useState('');
-  const [score, setScore] = useState<number>(0);
-  const [maxScore, setMaxScore] = useState<number>(100);
-  const [weight, setWeight] = useState<number>(20);
+  const [score, setScore] = useState<string>('85');
+  const [maxScore, setMaxScore] = useState<string>('100');
+  const [weight, setWeight] = useState<string>('20');
 
   const grades = category.grades || [];
   const gpaInfo = calculateWeightedGPA(grades);
 
   const handleAddGrade = () => {
-    if (!title.trim() || maxScore <= 0) return;
+    const numScore = parseFloat(score);
+    const numMax = parseFloat(maxScore);
+    const numWeight = parseFloat(weight);
+
+    if (!title.trim() || isNaN(numMax) || numMax <= 0) return;
     const newGrade: Grade = {
       id: Math.random().toString(36).slice(2, 9),
       title: title.trim(),
-      score: Number(score),
-      maxScore: Number(maxScore),
-      weight: Number(weight),
+      score: isNaN(numScore) ? 0 : numScore,
+      maxScore: numMax,
+      weight: isNaN(numWeight) ? 0 : numWeight,
       created: Date.now(),
     };
     onUpdateCategory({ ...category, grades: [...grades, newGrade] });
     setTitle('');
-    setScore(0);
-    setMaxScore(100);
-    setWeight(20);
+    setScore('85');
+    setMaxScore('100');
+    setWeight('20');
     setIsAddOpen(false);
   };
 
@@ -222,8 +226,9 @@ export const GradesView: React.FC<GradesViewProps> = ({
                     type="number"
                     step="0.5"
                     value={score}
-                    onChange={(e) => setScore(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setScore(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono font-bold"
                   />
                 </div>
                 <div>
@@ -233,8 +238,9 @@ export const GradesView: React.FC<GradesViewProps> = ({
                   <input
                     type="number"
                     value={maxScore}
-                    onChange={(e) => setMaxScore(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setMaxScore(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono font-bold"
                   />
                 </div>
                 <div>
@@ -244,8 +250,9 @@ export const GradesView: React.FC<GradesViewProps> = ({
                   <input
                     type="number"
                     value={weight}
-                    onChange={(e) => setWeight(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono"
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => setWeight(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono font-bold"
                   />
                 </div>
               </div>

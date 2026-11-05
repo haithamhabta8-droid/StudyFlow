@@ -6,6 +6,7 @@ import { t } from '../../utils/translations.ts';
 interface StreakModalProps {
   isOpen: boolean;
   sessionTimestamps: number[];
+  studiedDates?: string[];
   lang: 'ar' | 'en';
   onClose: () => void;
 }
@@ -13,6 +14,7 @@ interface StreakModalProps {
 export const StreakModal: React.FC<StreakModalProps> = ({
   isOpen,
   sessionTimestamps,
+  studiedDates = [],
   lang,
   onClose,
 }) => {
@@ -20,7 +22,14 @@ export const StreakModal: React.FC<StreakModalProps> = ({
 
   if (!isOpen) return null;
 
-  const streakInfo = calculateStreak(sessionTimestamps);
+  // Convert studiedDates (YYYY-MM-DD) to pseudo timestamps so calculateStreak aggregates them
+  const extraTimestamps = studiedDates.map((d) => {
+    const [y, m, day] = d.split('-').map(Number);
+    return new Date(y, m - 1, day, 12, 0, 0).getTime();
+  });
+
+  const allTimestamps = [...sessionTimestamps, ...extraTimestamps];
+  const streakInfo = calculateStreak(allTimestamps);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed
@@ -157,13 +166,16 @@ export const StreakModal: React.FC<StreakModalProps> = ({
             return (
               <div
                 key={dayNum}
-                className={`aspect-square rounded-xl flex items-center justify-center font-mono text-xs font-bold transition-all ${
+                className={`relative aspect-square rounded-xl flex flex-col items-center justify-center font-mono text-xs font-bold transition-all ${
                   studied
                     ? 'bg-gradient-to-tr from-rose-600 to-amber-500 text-white shadow-md shadow-rose-900/40 font-extrabold'
                     : 'bg-[#1c1c3a] text-[#8888a8]'
                 } ${isToday ? 'ring-2 ring-purple-400' : ''}`}
               >
-                {dayNum}
+                <span>{dayNum}</span>
+                {studied && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-200 mt-0.5 shadow-sm" />
+                )}
               </div>
             );
           })}

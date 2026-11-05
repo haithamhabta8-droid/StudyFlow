@@ -130,53 +130,78 @@ export async function generateWithGemini(
     throw new Error('Please add your API key in Settings');
   }
 
-  const model = options?.model || DEFAULT_GEMINI_MODEL;
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  const bodyPayload: any = {
-    contents: [
-      {
-        parts: [{ text: prompt }],
-      },
-    ],
-    generationConfig: {
-      temperature: 0.7,
-    },
-  };
-
-  if (options?.systemInstruction) {
-    bodyPayload.systemInstruction = {
-      parts: [{ text: options.systemInstruction }],
-    };
+  // Sanitize model choice - replace deprecated models automatically
+  let preferredModel = options?.model || DEFAULT_GEMINI_MODEL;
+  if (preferredModel.includes('2.5-flash') || preferredModel.includes('1.5-flash')) {
+    preferredModel = DEFAULT_GEMINI_MODEL;
   }
 
-  if (options?.jsonMode) {
-    bodyPayload.generationConfig.responseMimeType = 'application/json';
+  const modelCandidates = [
+    preferredModel,
+    'gemini-3.8-flash',
+    'gemini-3.1-flash-lite',
+    'gemini-flash-latest',
+  ].filter((v, i, a) => a.indexOf(v) === i);
+
+  let lastError = 'No response returned by Gemini model.';
+  let lastStatus: number | undefined;
+
+  for (const model of modelCandidates) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+      const bodyPayload: any = {
+        contents: [
+          {
+            parts: [{ text: prompt }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.7,
+        },
+      };
+
+      if (options?.systemInstruction) {
+        bodyPayload.systemInstruction = {
+          parts: [{ text: options.systemInstruction }],
+        };
+      }
+
+      if (options?.jsonMode) {
+        bodyPayload.generationConfig.responseMimeType = 'application/json';
+      }
+
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bodyPayload),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const candidate = data.candidates?.[0];
+        const text = candidate?.content?.parts?.[0]?.text;
+        if (text) {
+          return text;
+        }
+      }
+
+      lastStatus = res.status;
+      const errJson = await res.json().catch(() => null);
+      lastError = errJson?.error?.message || `HTTP ${res.status}`;
+
+      // If it's an API key error, don't try other models
+      if (lastError.toLowerCase().includes('api_key_invalid') || lastError.toLowerCase().includes('not valid')) {
+        break;
+      }
+    } catch (err: any) {
+      lastError = err?.message || 'Network error';
+    }
   }
 
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(bodyPayload),
-  });
-
-  if (!res.ok) {
-    const errJson = await res.json().catch(() => null);
-    const msg = errJson?.error?.message || `Status ${res.status}`;
-    throw new Error(formatUserFriendlyGeminiError(msg, res.status));
-  }
-
-  const data = await res.json();
-  const candidate = data.candidates?.[0];
-  const text = candidate?.content?.parts?.[0]?.text;
-
-  if (!text) {
-    throw new Error('No response returned by Gemini model.');
-  }
-
-  return text;
+  throw new Error(formatUserFriendlyGeminiError(lastError, lastStatus));
 }
 
 /**

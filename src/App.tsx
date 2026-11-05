@@ -11,6 +11,7 @@ import { MindMapView } from './components/MindMapView.tsx';
 import { QuizView } from './components/QuizView.tsx';
 import { NotesView } from './components/NotesView.tsx';
 import { SettingsView } from './components/SettingsView.tsx';
+import { TimelineView } from './components/TimelineView.tsx';
 
 // Modals
 import { CategoryModal } from './components/modals/CategoryModal.tsx';
@@ -21,6 +22,7 @@ import { StreakModal } from './components/modals/StreakModal.tsx';
 import { CustomizeDashboardModal } from './components/modals/CustomizeDashboardModal.tsx';
 import { ProfileModal } from './components/modals/ProfileModal.tsx';
 import { SessionEndModal } from './components/modals/SessionEndModal.tsx';
+import { WelcomeTourModal } from './components/modals/WelcomeTourModal.tsx';
 
 import { AppState, Category, Card, PomodoroSession } from './types/index.ts';
 import {
@@ -29,6 +31,12 @@ import {
   getDefaultState,
   importAppState,
 } from './utils/storage.ts';
+import {
+  uploadBackupToDrive,
+  getStoredAccessToken,
+  requestGoogleAccessToken,
+  fetchGoogleUserProfile,
+} from './utils/googleDrive.ts';
 import { calculateStreak, calculateCardStats } from './utils/calculations.ts';
 import { playChime } from './utils/audio.ts';
 import { t } from './utils/translations.ts';
@@ -58,18 +66,44 @@ export default function App() {
   const [isSessionEndModalOpen, setIsSessionEndModalOpen] = useState(false);
   const [completedSessionDuration, setCompletedSessionDuration] = useState(25);
 
+  const [isWelcomeTourOpen, setIsWelcomeTourOpen] = useState(() => {
+    try {
+      return localStorage.getItem('studyflow_onboarded') !== 'true';
+    } catch {
+      return false;
+    }
+  });
+
   // Pomodoro Timer State
-  const [pomoTimeLeft, setPomoTimeLeft] = useState(25 * 60);
-  const [pomoTotalDuration, setPomoTotalDuration] = useState(25 * 60);
+  const defaultPomoMins = state.settings.pomoWorkMinutes || 25;
+  const [pomoTimeLeft, setPomoTimeLeft] = useState(defaultPomoMins * 60);
+  const [pomoTotalDuration, setPomoTotalDuration] = useState(defaultPomoMins * 60);
   const [isPomoRunning, setIsPomoRunning] = useState(false);
   const [pomoMode, setPomoMode] = useState<'focus' | 'break'>('focus');
   const [pomoBreaksCount, setPomoBreaksCount] = useState(0);
   const [pomoHideTime, setPomoHideTime] = useState(false);
   const [isPomoFullscreen, setIsPomoFullscreen] = useState(false);
 
-  // Sync state to localStorage immediately upon change
+  // Sync state to localStorage immediately, and auto-sync to Google Drive appDataFolder
+  const autoSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
     saveAppState(state);
+
+    if (state.profile?.signedIn) {
+      if (autoSyncTimerRef.current) {
+        clearTimeout(autoSyncTimerRef.current);
+      }
+      autoSyncTimerRef.current = setTimeout(async () => {
+        const token = getStoredAccessToken();
+        if (token) {
+          try {
+            await uploadBackupToDrive(token, state);
+          } catch (e) {
+            console.warn('Auto-sync to Google Drive error:', e);
+          }
+        }
+      }, 1500);
+    }
   }, [state]);
 
   // Sync theme, direction, and primary accent color
@@ -256,11 +290,17 @@ export default function App() {
       note: note || undefined,
     };
 
+    const todayStr = new Date().toISOString().slice(0, 10);
+
     setState((prev) => {
+      const dates = prev.studiedDates || [];
+      const updatedDates = dates.includes(todayStr) ? dates : [...dates, todayStr];
+
       // If a category was chosen, save session to it
       if (categoryId) {
         return {
           ...prev,
+          studiedDates: updatedDates,
           categories: prev.categories.map((c) => {
             if (c.id === categoryId) {
               const updatedQuizzes = shouldGenerateQuiz
@@ -297,7 +337,10 @@ export default function App() {
           }),
         };
       }
-      return prev;
+      return {
+        ...prev,
+        studiedDates: updatedDates,
+      };
     });
 
     setIsSessionEndModalOpen(false);
@@ -377,6 +420,7 @@ export default function App() {
         }}
         onTogglePin={handleTogglePin}
         onDeleteCategory={handleDeleteCategory}
+        onReorderCategories={(newCats) => setState((prev) => ({ ...prev, categories: newCats }))}
         onGoHome={() => {
           setCurrentCatId(null);
           setCurrentTab('home');
@@ -402,6 +446,11 @@ export default function App() {
           handleUpdateSettings({ sidebarCollapsed: next });
         }}
         onCloseMobile={() => setIsMobileOpen(false)}
+        onOpenTimeline={() => {
+          setCurrentCatId(null);
+          setCurrentTab('timeline');
+          setIsMobileOpen(false);
+        }}
       />
 
       {/* Main Content Area */}
@@ -440,6 +489,10 @@ export default function App() {
               lang: state.settings.lang === 'ar' ? 'en' : 'ar',
             });
           }}
+          onOpenTimeline={() => {
+            setCurrentCatId(null);
+            setCurrentTab('timeline');
+          }}
           onSwitchTab={(tab) => setCurrentTab(tab)}
         />
 
@@ -455,6 +508,40 @@ export default function App() {
                 onRestoreState={handleRestoreState}
                 onImportState={handleImportFile}
                 onResetAll={handleResetAll}
+                onStartTutorial={() => setIsWelcomeTourOpen(true)}
+              />
+            ) : currentTab === 'timeline' ? (
+              <TimelineView
+                events={state.calendarEvents || []}
+                lang={state.settings.lang}
+                primaryColor={state.settings.primaryColor}
+                isGoogleConnected={Boolean(state.profile.signedIn)}
+                onUpdateEvents={(updatedEvents) => {
+                  setState((prev) => ({
+                    ...prev,
+                    calendarEvents: updatedEvents,
+                  }));
+                }}
+                onEventCompleted={(event) => {
+                  const todayStr = new Date().toISOString().slice(0, 10);
+                  setState((prev) => {
+                    const dates = prev.studiedDates || [];
+                    const updatedDates = dates.includes(todayStr) ? dates : [...dates, todayStr];
+                    return {
+                      ...prev,
+                      studiedDates: updatedDates,
+                    };
+                  });
+                }}
+                onConnectGoogle={async () => {
+                  try {
+                    const token = await requestGoogleAccessToken();
+                    const profile = await fetchGoogleUserProfile(token);
+                    handleUpdateProfile({ ...profile, signedIn: true });
+                  } catch (e) {
+                    console.warn('Google connect error:', e);
+                  }
+                }}
               />
             ) : currentTab === 'profile' ? (
               /* Profile Details View */
@@ -528,8 +615,9 @@ export default function App() {
                 onTogglePomo={() => setIsPomoRunning((prev) => !prev)}
                 onResetPomo={() => {
                   setIsPomoRunning(false);
-                  setPomoTimeLeft(25 * 60);
-                  setPomoTotalDuration(25 * 60);
+                  const resetMins = state.settings.pomoWorkMinutes || 25;
+                  setPomoTimeLeft(resetMins * 60);
+                  setPomoTotalDuration(resetMins * 60);
                   setPomoMode('focus');
                 }}
                 onOpenFullscreenPomo={() => setIsPomoFullscreen(true)}
@@ -561,6 +649,24 @@ export default function App() {
                 onOpenSettings={() => {
                   setCurrentCatId(null);
                   setCurrentTab('settings');
+                }}
+                onReorderWidgets={(newDashboard) =>
+                  handleUpdateSettings({ dashboard: newDashboard })
+                }
+                onChangeWidgetSize={(widgetId, newSize) => {
+                  const updatedDashboard = (state.settings.dashboard || []).map((w) =>
+                    w.id === widgetId ? { ...w, size: newSize } : w
+                  );
+                  handleUpdateSettings({ dashboard: updatedDashboard });
+                }}
+                onUpdatePomoDuration={(mins) => {
+                  setPomoTotalDuration(mins * 60);
+                  setPomoTimeLeft(mins * 60);
+                  handleUpdateSettings({ pomoWorkMinutes: mins });
+                }}
+                onNavigateToTimeline={() => {
+                  setCurrentCatId(null);
+                  setCurrentTab('timeline');
                 }}
               />
             )
@@ -785,6 +891,7 @@ export default function App() {
           setCurrentCatId(null);
           setCurrentTab('settings');
         }}
+        onOpenNewCategory={() => setIsNewCategoryOpen(true)}
         onGenerated={handleGeneratedCards}
       />
 
@@ -802,8 +909,21 @@ export default function App() {
       <StreakModal
         isOpen={isStreakModalOpen}
         sessionTimestamps={allSessions.map((s) => s.ts)}
+        studiedDates={state.studiedDates || []}
         lang={state.settings.lang}
         onClose={() => setIsStreakModalOpen(false)}
+      />
+
+      <WelcomeTourModal
+        isOpen={isWelcomeTourOpen}
+        currentLang={state.settings.lang}
+        onSelectLang={(newLang) => handleUpdateSettings({ lang: newLang })}
+        onFinish={() => {
+          try {
+            localStorage.setItem('studyflow_onboarded', 'true');
+          } catch {}
+          setIsWelcomeTourOpen(false);
+        }}
       />
 
       <CustomizeDashboardModal

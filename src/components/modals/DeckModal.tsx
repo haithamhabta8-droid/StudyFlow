@@ -22,19 +22,46 @@ export const DeckModal: React.FC<DeckModalProps> = ({
   onCreate,
 }) => {
   const [selectedCatId, setSelectedCatId] = useState<string>(
-    currentCatId || categories[0]?.id || ''
+    currentCatId || (categories.length > 0 ? categories[0].id : '')
   );
   const [name, setName] = useState('');
   const [color, setColor] = useState(PRIMARY_COLORS[1]);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Automatically update selected category whenever modal opens or categories change
+  React.useEffect(() => {
+    if (isOpen) {
+      if (currentCatId && categories.some((c) => c.id === currentCatId)) {
+        setSelectedCatId(currentCatId);
+      } else if (categories.length > 0) {
+        setSelectedCatId(categories[0].id);
+      } else {
+        setSelectedCatId('');
+      }
+      setErrorMsg(null);
+    }
+  }, [isOpen, currentCatId, categories]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !selectedCatId) return;
-    onCreate(selectedCatId, name.trim(), color);
+    const trimmed = name.trim();
+    if (!trimmed) {
+      setErrorMsg(lang === 'ar' ? 'يرجى إدخال اسم للدرج' : 'Please enter a deck name');
+      return;
+    }
+
+    const catId = selectedCatId || (categories.length > 0 ? categories[0].id : '');
+    if (!catId) {
+      setErrorMsg(lang === 'ar' ? 'يرجى اختيار مادة أو تصنيف أولاً' : 'Please select a category first');
+      return;
+    }
+
+    onCreate(catId, trimmed, color);
     setName('');
     setColor(PRIMARY_COLORS[1]);
+    setErrorMsg(null);
     onClose();
   };
 
@@ -56,6 +83,12 @@ export const DeckModal: React.FC<DeckModalProps> = ({
             <X className="w-5 h-5" />
           </button>
         </div>
+
+        {errorMsg && (
+          <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold">
+            {errorMsg}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>

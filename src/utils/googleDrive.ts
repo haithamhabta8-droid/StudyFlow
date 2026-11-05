@@ -12,6 +12,7 @@ export const GOOGLE_CLIENT_ID =
 
 export const DRIVE_SCOPES = [
   'https://www.googleapis.com/auth/drive.appdata',
+  'https://www.googleapis.com/auth/calendar.readonly',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/userinfo.email',
 ].join(' ');
