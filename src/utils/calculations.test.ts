@@ -43,6 +43,12 @@ test('calculateStreak counts consecutive days', () => {
   const streak = calculateStreak(timestamps);
   assert.equal(streak.currentStreak, 3);
   assert.equal(streak.activeToday, true);
+
+  // Additional date keys test
+  const todayDateStr = new Date().toISOString().slice(0, 10);
+  const streakWithKeys = calculateStreak([], [todayDateStr]);
+  assert.equal(streakWithKeys.currentStreak, 1);
+  assert.equal(streakWithKeys.activeToday, true);
 });
 
 test('calculateCardStats aggregates total, mastered, and masteryPct', () => {

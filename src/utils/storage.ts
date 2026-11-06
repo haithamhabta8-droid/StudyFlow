@@ -51,10 +51,10 @@ export function getDefaultState(): AppState {
       signedIn: false,
     },
     settings: {
-      provider: 'groq',
+      provider: 'gemini',
       apiKey: '',
-      baseUrl: 'https://api.groq.com/openai/v1',
-      model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+      baseUrl: 'https://generativelanguage.googleapis.com',
+      model: 'gemini-3.8-flash',
       goalDaily: 60,
       goalWeekly: 420,
       lang: 'en',
@@ -68,20 +68,20 @@ export function getDefaultState(): AppState {
       models: [
         {
           id: 'm-1',
-          name: 'Llama 4 Scout (صور)',
-          provider: 'groq',
-          modelId: 'meta-llama/llama-4-scout-17b-16e-instruct',
+          name: 'Gemini 3.8 Flash',
+          provider: 'gemini',
+          modelId: 'gemini-3.8-flash',
           callsToday: 0,
-          maxCallsDaily: 1000,
+          maxCallsDaily: 20,
           active: true,
         },
         {
           id: 'm-2',
-          name: 'Gemini 2.5 Flash',
+          name: 'Gemini 3.1 Flash Lite',
           provider: 'gemini',
-          modelId: 'gemini-2.5-flash',
+          modelId: 'gemini-3.1-flash-lite',
           callsToday: 0,
-          maxCallsDaily: 1500,
+          maxCallsDaily: 20,
           active: false,
         },
       ],
@@ -98,18 +98,35 @@ export function loadAppState(): AppState {
       const parsed = JSON.parse(raw);
       const def = getDefaultState();
 
+      const loadedSettings = {
+        ...def.settings,
+        ...(parsed.settings || {}),
+        dashboard: Array.isArray(parsed.settings?.dashboard)
+          ? parsed.settings.dashboard
+          : def.settings.dashboard,
+      };
+
+      // Always upgrade deprecated model strings to gemini-3.8-flash
+      if (
+        !loadedSettings.model ||
+        loadedSettings.model.includes('2.5') ||
+        loadedSettings.model.includes('1.5') ||
+        loadedSettings.model.includes('2.0') ||
+        loadedSettings.model.includes('groq') ||
+        loadedSettings.model.includes('llama')
+      ) {
+        loadedSettings.model = 'gemini-3.8-flash';
+        loadedSettings.provider = 'gemini';
+      }
+
       return {
         categories: Array.isArray(parsed.categories) ? parsed.categories : [],
         pinned: Array.isArray(parsed.pinned) ? parsed.pinned : [],
         profile: { ...def.profile, ...(parsed.profile || {}) },
-        settings: {
-          ...def.settings,
-          ...(parsed.settings || {}),
-          dashboard: Array.isArray(parsed.settings?.dashboard)
-            ? parsed.settings.dashboard
-            : def.settings.dashboard,
-        },
+        settings: loadedSettings,
         breakHistory: Array.isArray(parsed.breakHistory) ? parsed.breakHistory : [],
+        calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
+        studiedDates: Array.isArray(parsed.studiedDates) ? parsed.studiedDates : [],
       };
     }
   } catch (e) {

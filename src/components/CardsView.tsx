@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Folder,
   Plus,
@@ -10,7 +10,26 @@ import {
   HelpCircle,
   Eye,
   Trash2,
+  GripVertical,
+  Keyboard,
 } from 'lucide-react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  rectSortingStrategy,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import { Card, Category, Deck } from '../types/index.ts';
 import { getNextCardStatus } from '../utils/calculations.ts';
 import { t } from '../utils/translations.ts';
@@ -22,6 +41,94 @@ interface CardsViewProps {
   onOpenGenerateModal: () => void;
   onOpenNewDeckModal: () => void;
 }
+
+interface SortableCardProps {
+  card: Card;
+  deckColor: string;
+  lang: 'ar' | 'en';
+  onDelete: () => void;
+}
+
+const SortableCardItem: React.FC<SortableCardProps> = ({
+  card,
+  deckColor,
+  lang,
+  onDelete,
+}) => {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: card.id });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : undefined,
+    opacity: isDragging ? 0.8 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative p-4 rounded-2xl bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 transition-all flex flex-col justify-between space-y-3 ${
+        isDragging ? 'ring-2 ring-purple-500 shadow-xl scale-[1.02]' : ''
+      }`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        {/* Six-dots drag handle */}
+        <div
+          {...attributes}
+          {...listeners}
+          title={lang === 'ar' ? 'اسحب لإعادة الترتيب' : 'Drag to reorder'}
+          className="cursor-grab active:cursor-grabbing p-1 rounded-lg text-[#8888a8] hover:text-purple-400 touch-none transition-colors"
+        >
+          <GripVertical className="w-4 h-4" />
+        </div>
+
+        <button
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 p-1 text-[#8888a8] hover:text-rose-400 transition-opacity"
+          title="Delete"
+        >
+          <Trash2 className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="font-bold text-sm text-[#e8e8f0] leading-snug line-clamp-3">
+        {card.q}
+      </div>
+      <div className="text-xs text-[#8888a8] line-clamp-3 leading-relaxed">
+        {card.a}
+      </div>
+
+      <div className="flex items-center justify-between pt-2 border-t border-[#2a2a4a]/40 text-[11px]">
+        <span
+          className={`px-2 py-0.5 rounded-full font-bold ${
+            card.status === 'mastered'
+              ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
+              : card.status === 'learning'
+              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+              : 'bg-[#1c1c3a] text-[#8888a8]'
+          }`}
+        >
+          {card.status === 'mastered'
+            ? t('mastered', lang)
+            : card.status === 'learning'
+            ? t('learning', lang)
+            : t('newCards', lang)}
+        </span>
+        <span className="text-[#5a5a78]">
+          {card.reviews || 0} reviews
+        </span>
+      </div>
+    </div>
+  );
+};
 
 export const CardsView: React.FC<CardsViewProps> = ({
   category,
@@ -42,6 +149,18 @@ export const CardsView: React.FC<CardsViewProps> = ({
   const [manualDeckId, setManualDeckId] = useState<string>('');
   const [manualQuestion, setManualQuestion] = useState('');
   const [manualAnswer, setManualAnswer] = useState('');
+
+  // Sensors for card dragging
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   const selectedDeck = category.decks?.find((d) => d.id === selectedDeckId);
 
@@ -97,10 +216,39 @@ export const CardsView: React.FC<CardsViewProps> = ({
   };
 
   const handleShowAnswer = () => {
-    setIsFlipped(true);
+    setIsFlipped((prev) => !prev);
     setGlowColor('blue');
     setTimeout(() => setGlowColor(null), 300);
   };
+
+  // Keyboard navigation shortcuts during study mode
+  useEffect(() => {
+    if (!studyMode) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        handleAnswer(true);
+      } else if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        handleAnswer(false);
+      } else if (e.key === 'ArrowDown' || e.key === ' ' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        handleShowAnswer();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setStudyMode(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [studyMode, currentCardIndex, studyCards, isFlipped]);
 
   const handleSaveManualCard = () => {
     if (!manualQuestion.trim() || !manualAnswer.trim() || !manualDeckId) return;
@@ -140,6 +288,23 @@ export const CardsView: React.FC<CardsViewProps> = ({
     const updatedDecks = category.decks.filter((d) => d.id !== deckId);
     if (selectedDeckId === deckId) setSelectedDeckId(null);
     onUpdateCategory({ ...category, decks: updatedDecks });
+  };
+
+  // Reorder cards in deck via dnd-kit
+  const handleCardDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!selectedDeck || !over || active.id === over.id) return;
+
+    const oldIndex = selectedDeck.cards.findIndex((c) => c.id === active.id);
+    const newIndex = selectedDeck.cards.findIndex((c) => c.id === over.id);
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      const reorderedCards = arrayMove(selectedDeck.cards, oldIndex, newIndex);
+      const updatedDecks = category.decks.map((d) =>
+        d.id === selectedDeck.id ? { ...d, cards: reorderedCards } : d
+      );
+      onUpdateCategory({ ...category, decks: updatedDecks });
+    }
   };
 
   const allCategoryCards = (category.decks || []).flatMap((d) => d.cards || []);
@@ -212,7 +377,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
 
       {/* Main Content: Single Deck View OR Decks Grid */}
       {selectedDeck ? (
-        /* Selected Deck View */
+        /* Selected Deck View with Sortable Cards */
         <div className="space-y-4">
           <div className="flex items-center justify-between p-4 rounded-2xl bg-[#12122a] border border-[#2a2a4a]">
             <div className="flex items-center gap-3">
@@ -229,7 +394,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                 <span className="text-xs text-[#8888a8]">
                   {selectedDeck.cards.length} {t('cards', lang)} ·{' '}
                   {selectedDeck.cards.filter((c) => c.status === 'mastered').length}{' '}
-                  {t('mastered', lang)}
+                  {t('mastered', lang)} (Drag cards to reorder)
                 </span>
               </div>
             </div>
@@ -254,54 +419,28 @@ export const CardsView: React.FC<CardsViewProps> = ({
               <p className="text-xs max-w-sm mx-auto">{t('noCardsInDeckSub', lang)}</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {selectedDeck.cards.map((card) => (
-                <div
-                  key={card.id}
-                  className="group relative p-4 rounded-2xl bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 transition-all hover:-translate-y-0.5 space-y-3"
-                  style={{
-                    borderInlineStartWidth: '4px',
-                    borderInlineStartColor: selectedDeck.color || category.color,
-                  }}
-                >
-                  <button
-                    onClick={() => handleDeleteCard(selectedDeck.id, card.id)}
-                    className="absolute top-3 end-3 opacity-0 group-hover:opacity-100 p-1 text-[#8888a8] hover:text-rose-400 transition-opacity"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-
-                  <div className="font-bold text-sm text-[#e8e8f0] leading-snug line-clamp-3">
-                    {card.q}
-                  </div>
-                  <div className="text-xs text-[#8888a8] line-clamp-3 leading-relaxed">
-                    {card.a}
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2 border-t border-[#2a2a4a]/40 text-[11px]">
-                    <span
-                      className={`px-2 py-0.5 rounded-full font-bold ${
-                        card.status === 'mastered'
-                          ? 'bg-teal-500/10 text-teal-400 border border-teal-500/20'
-                          : card.status === 'learning'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-[#1c1c3a] text-[#8888a8]'
-                      }`}
-                    >
-                      {card.status === 'mastered'
-                        ? t('mastered', lang)
-                        : card.status === 'learning'
-                        ? t('learning', lang)
-                        : t('newCards', lang)}
-                    </span>
-                    <span className="text-[#5a5a78]">
-                      {card.reviews || 0} reviews
-                    </span>
-                  </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleCardDragEnd}
+            >
+              <SortableContext
+                items={selectedDeck.cards.map((c) => c.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {selectedDeck.cards.map((card) => (
+                    <SortableCardItem
+                      key={card.id}
+                      card={card}
+                      deckColor={selectedDeck.color || category.color}
+                      lang={lang}
+                      onDelete={() => handleDeleteCard(selectedDeck.id, card.id)}
+                    />
+                  ))}
                 </div>
-              ))}
-            </div>
+              </SortableContext>
+            </DndContext>
           )}
         </div>
       ) : (
@@ -476,7 +615,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
         </div>
       )}
 
-      {/* 3D Study Mode Modal */}
+      {/* 3D Study Mode Modal with Keyboard Shortcuts */}
       {studyMode && studyCards.length > 0 && (
         <div
           role="dialog"
@@ -484,10 +623,12 @@ export const CardsView: React.FC<CardsViewProps> = ({
           className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md p-4 sm:p-6"
         >
           {/* Header */}
-          <div className="w-full max-w-xl flex items-center justify-between text-xs font-bold text-[#8888a8] mb-4">
-            <span>
-              {currentCardIndex + 1} / {studyCards.length}
-            </span>
+          <div className="w-full max-w-xl flex items-center justify-between text-xs font-bold text-[#8888a8] mb-3">
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-purple-300">
+                {currentCardIndex + 1} / {studyCards.length}
+              </span>
+            </div>
             <button
               onClick={() => setStudyMode(false)}
               className="px-3 py-1.5 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] text-[#e8e8f0] transition-colors"
@@ -521,7 +662,7 @@ export const CardsView: React.FC<CardsViewProps> = ({
                   {studyCards[currentCardIndex]?.q}
                 </div>
                 <span className="text-xs text-[#8888a8] italic">
-                  {t('clickToFlip', lang)}
+                  {t('clickToFlip', lang)} (or press Space / ⬇)
                 </span>
               </div>
 
@@ -538,31 +679,51 @@ export const CardsView: React.FC<CardsViewProps> = ({
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center justify-center gap-4 mt-6 w-full max-w-xl">
+          {/* Action Buttons (Aligned, with keyboard badges) */}
+          <div className="grid grid-cols-3 gap-3 mt-6 w-full max-w-xl">
             <button
               onClick={() => handleAnswer(false)}
-              className="flex-1 max-w-[140px] flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25 font-extrabold text-xs transition-all active:scale-95"
+              className="flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-rose-500/15 border border-rose-500/30 text-rose-400 hover:bg-rose-500/25 font-extrabold text-xs transition-all active:scale-95"
             >
-              <X className="w-4 h-4" />
+              <X className="w-4 h-4 shrink-0" />
               <span>{t('dontKnow', lang)}</span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] bg-rose-950/60 border border-rose-500/30 font-mono text-rose-300">
+                ←
+              </kbd>
             </button>
 
             <button
               onClick={handleShowAnswer}
-              className="px-5 py-3 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-purple-500/40 text-[#e8e8f0] font-bold text-xs flex items-center gap-2 transition-all active:scale-95"
+              className="flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-purple-500/40 text-[#e8e8f0] font-bold text-xs transition-all active:scale-95"
             >
-              <Eye className="w-4 h-4 text-purple-400" />
+              <Eye className="w-4 h-4 text-purple-400 shrink-0" />
               <span>{t('showAnswer', lang)}</span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] bg-[#12122a] border border-[#2a2a4a] font-mono text-[#8888a8]">
+                ↓
+              </kbd>
             </button>
 
             <button
               onClick={() => handleAnswer(true)}
-              className="flex-1 max-w-[140px] flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-teal-500 hover:bg-teal-400 text-[#052a22] font-extrabold text-xs shadow-lg shadow-teal-500/25 transition-all active:scale-95"
+              className="flex flex-col sm:flex-row items-center justify-center gap-1.5 py-3 px-3 rounded-2xl bg-teal-500 hover:bg-teal-400 text-[#052a22] font-extrabold text-xs shadow-lg shadow-teal-500/25 transition-all active:scale-95"
             >
-              <Check className="w-4 h-4" />
+              <Check className="w-4 h-4 shrink-0 stroke-[3]" />
               <span>{t('know', lang)}</span>
+              <kbd className="hidden sm:inline-block px-1.5 py-0.5 rounded text-[10px] bg-teal-600/40 border border-teal-800 font-mono text-teal-950 font-bold">
+                →
+              </kbd>
             </button>
+          </div>
+
+          {/* On-Screen Keyboard Shortcuts Tutorial Banner */}
+          <div className="mt-4 flex items-center gap-3 px-4 py-2 rounded-xl bg-[#12122a] border border-[#2a2a4a] text-[11px] text-[#8888a8]">
+            <Keyboard className="w-3.5 h-3.5 text-purple-400 shrink-0" />
+            <div className="flex flex-wrap items-center gap-2">
+              <span>Shortcuts:</span>
+              <span><kbd className="px-1 rounded bg-[#1c1c3a] border border-[#2a2a4a] text-[#e8e8f0]">→</kbd> Know</span>
+              <span><kbd className="px-1 rounded bg-[#1c1c3a] border border-[#2a2a4a] text-[#e8e8f0]">←</kbd> Don't Know</span>
+              <span><kbd className="px-1 rounded bg-[#1c1c3a] border border-[#2a2a4a] text-[#e8e8f0]">↓</kbd> / <kbd className="px-1 rounded bg-[#1c1c3a] border border-[#2a2a4a] text-[#e8e8f0]">Space</kbd> Flip</span>
+            </div>
           </div>
         </div>
       )}

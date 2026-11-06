@@ -53,21 +53,29 @@ export function calculateWeightedGPA(grades: Grade[]): {
 /**
  * Calculate study streak from timestamps
  */
-export function calculateStreak(sessionTimestamps: number[]): {
+export function calculateStreak(
+  sessionTimestamps: number[],
+  additionalDateKeys?: string[]
+): {
   currentStreak: number;
   bestStreak: number;
   activeToday: boolean;
   uniqueDays: string[];
 } {
-  if (!sessionTimestamps || sessionTimestamps.length === 0) {
-    return { currentStreak: 0, bestStreak: 0, activeToday: false, uniqueDays: [] };
-  }
-
   const dateSet = new Set<string>();
-  for (const ts of sessionTimestamps) {
+
+  for (const ts of sessionTimestamps || []) {
     const d = new Date(ts);
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
     dateSet.add(key);
+  }
+
+  for (const dk of additionalDateKeys || []) {
+    if (dk) dateSet.add(dk);
+  }
+
+  if (dateSet.size === 0) {
+    return { currentStreak: 0, bestStreak: 0, activeToday: false, uniqueDays: [] };
   }
 
   const sortedDays = Array.from(dateSet).sort();

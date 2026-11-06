@@ -139,17 +139,45 @@ export const PomodoroFullscreen: React.FC<PomodoroFullscreenProps> = ({
         <div className="flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={onTogglePlay}
-            className="flex items-center gap-2 px-8 py-3.5 rounded-2xl bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-base shadow-xl shadow-purple-600/35 hover:-translate-y-0.5 active:translate-y-0 transition-all"
+            className={`flex items-center gap-2 px-8 py-3.5 rounded-2xl text-white font-extrabold text-base shadow-xl hover:-translate-y-0.5 active:translate-y-0 transition-all ${
+              mode === 'break'
+                ? 'bg-teal-500 hover:bg-teal-400 text-[#052a22] shadow-teal-500/25'
+                : 'bg-purple-600 hover:bg-purple-500 shadow-purple-600/35'
+            }`}
           >
             {isRunning ? (
               <>
-                <Pause className="w-5 h-5 fill-white" />
-                <span>{t('pause', lang)}</span>
+                <Pause className="w-5 h-5 fill-current" />
+                <span>
+                  {mode === 'break'
+                    ? lang === 'ar'
+                      ? 'إيقاف الاستراحة'
+                      : 'Pause Break'
+                    : lang === 'ar'
+                    ? 'إيقاف التركيز'
+                    : 'Pause Focus'}
+                </span>
               </>
             ) : (
               <>
-                <Play className="w-5 h-5 fill-white" />
-                <span>{t('start', lang)}</span>
+                <Play className="w-5 h-5 fill-current" />
+                <span>
+                  {mode === 'break'
+                    ? timeLeft < totalDuration
+                      ? lang === 'ar'
+                        ? 'استئناف الاستراحة'
+                        : 'Resume Break'
+                      : lang === 'ar'
+                      ? 'بدء الاستراحة'
+                      : 'Start Break'
+                    : timeLeft < totalDuration
+                    ? lang === 'ar'
+                      ? 'استئناف التركيز'
+                      : 'Resume Focus'
+                    : lang === 'ar'
+                    ? 'بدء التركيز'
+                    : 'Start Focus'}
+                </span>
               </>
             )}
           </button>

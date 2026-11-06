@@ -14,6 +14,7 @@ import {
   HelpCircle,
   FileText,
   BarChart3,
+  Sparkles,
 } from 'lucide-react';
 import { Category } from '../types/index.ts';
 import { t, TranslationKey } from '../utils/translations.ts';
@@ -77,6 +78,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'mindmap', labelKey: 'tabMindmap', icon: <GitBranch className="w-4 h-4" /> },
     { id: 'quiz', labelKey: 'tabQuiz', icon: <HelpCircle className="w-4 h-4" /> },
     { id: 'notes', labelKey: 'tabNotes', icon: <FileText className="w-4 h-4" /> },
+    { id: 'askai', labelKey: 'tabAskAi', icon: <Sparkles className="w-4 h-4 text-purple-400" /> },
   ];
 
   return (
@@ -224,17 +226,6 @@ export const Header: React.FC<HeaderProps> = ({
             />
             <span className="font-mono text-sm">{streakCount}</span>
             <span className="text-[11px] font-medium">{t('streakShort', lang)}</span>
-          </button>
-
-
-          {/* Quick Settings Shortcut */}
-          <button
-            onClick={onOpenSettings}
-            className="w-8 h-8 rounded-xl bg-[#12122a] border border-[#2a2a4a] flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] hover:border-purple-500/40 transition-colors"
-            title={t('settings', lang)}
-            aria-label={t('settings', lang)}
-          >
-            <Settings className="w-4 h-4" />
           </button>
         </div>
       </div>

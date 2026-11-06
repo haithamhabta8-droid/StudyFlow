@@ -337,3 +337,15 @@ html[dir="ltr"] body {
   transition: all 0.3s ease !important;
 }
 
+/* Responsive Monitor Sizing & Global Interactive Polish */
+@media (min-width: 1920px) {
+  body {
+    font-size: clamp(14px, 0.9vw, 18px);
+  }
+}
+
+button, a, [role="button"] {
+  cursor: pointer;
+}
+
+

@@ -273,6 +273,17 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
               </div>
             </div>
 
+            {isGenerating && (
+              <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-500/30 text-purple-300 text-xs flex items-center gap-2 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin text-purple-400 shrink-0" />
+                <span>
+                  {lang === 'ar'
+                    ? 'قد يستغرق توليد الذكاء الاصطناعي بضع لحظات للمعالجة، يرجى الانتظار...'
+                    : 'AI generation might take a few moments to process...'}
+                </span>
+              </div>
+            )}
+
             {/* Actions */}
             <div className="flex items-center justify-end gap-2 pt-2">
               <button

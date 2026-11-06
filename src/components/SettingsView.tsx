@@ -125,6 +125,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }, [state.settings.apiKey]);
 
+  // Auto-recognize pasted Gemini API key
+  const handleKeyInputChange = (val: string) => {
+    setApiKeyInput(val);
+    const trimmed = val.trim();
+    if (trimmed.startsWith('AIza') && trimmed.length >= 35) {
+      setSelectedModel('gemini-3.8-flash');
+      setGeminiApiKey(trimmed);
+      onUpdateSettings({ apiKey: trimmed, model: 'gemini-3.8-flash' });
+      testGeminiApiKey(trimmed, 'gemini-3.8-flash').then((res) => {
+        if (res.success) {
+          setTestResult({
+            success: true,
+            message:
+              lang === 'ar'
+                ? '✓ تم التعرف على المفتاح وتفعيله بنجاح! (gemini-3.8-flash)'
+                : '✓ Key recognized and activated successfully! (gemini-3.8-flash)',
+          });
+          setTimeout(() => setTestResult(null), 4000);
+        }
+      });
+    }
+  };
+
   const handleHexChange = (val: string) => {
     const cleaned = val.replace(/[^0-9A-Fa-f]/g, '').slice(0, 6);
     setHexInput(cleaned.toUpperCase());
@@ -721,7 +744,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <input
               type={showApiKey ? 'text' : 'password'}
               value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
+              onChange={(e) => handleKeyInputChange(e.target.value)}
               placeholder="AIzaSy..."
               className="w-full px-3.5 py-2.5 pe-10 rounded-xl bg-[#121318] border border-[#20222a] text-xs font-mono text-[#f3f4f6] focus:outline-none focus:border-purple-500"
             />
@@ -735,13 +758,20 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </button>
           </div>
 
+          {/* 5-minute initialization notice */}
+          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/25 text-amber-300 text-[11px] leading-relaxed">
+            {lang === 'ar'
+              ? 'ملاحظة: تهيئة وتفعيل مفتاح API في خوادم Google قد يستغرق ما يصل إلى 5 دقائق بعد إنشائه. من الطبيعي الانتظار قليلاً قبل قبوله والتحقق منه.'
+              : "Note: Initializing the API key can take up to 5 minutes. It's normal to wait a bit longer than usual for it to be accepted."}
+          </div>
+
           <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleSaveApiKey}
                 style={{ backgroundColor: primaryColor }}
-                className="px-4 py-2 rounded-xl text-white font-bold text-xs shadow-md transition-all"
+                className="px-4 py-2 rounded-xl text-white font-bold text-xs shadow-md transition-all active:scale-95"
               >
                 {t('save', lang)}
               </button>
@@ -750,7 +780,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 type="button"
                 disabled={isTestingKey || !apiKeyInput.trim()}
                 onClick={handleTestApiKey}
-                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#121318] border border-[#20222a] hover:border-[#2e303c] disabled:opacity-50 text-xs font-bold text-[#f3f4f6] transition-colors"
+                className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#121318] border border-[#20222a] hover:border-[#2e303c] disabled:opacity-50 text-xs font-bold text-[#f3f4f6] transition-colors active:scale-95"
               >
                 {isTestingKey ? (
                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
@@ -764,7 +794,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <button
                   type="button"
                   onClick={handleClearApiKey}
-                  className="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-all"
+                  className="px-3 py-2 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-all active:scale-95"
                 >
                   {t('clearOffline', lang)}
                 </button>
@@ -806,7 +836,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               {lang === 'ar' ? 'الاستخدام اليومي المسجل:' : 'Recorded AI calls today:'}
             </span>
             <span className="font-mono font-bold text-[#f3f4f6]">
-              {state.settings.aiUsageToday || 0} / 50 {lang === 'ar' ? 'استدعاء' : 'calls'}
+              {state.settings.aiUsageToday || 0} / 20 {lang === 'ar' ? 'استدعاء' : 'calls'}
             </span>
           </div>
         </div>

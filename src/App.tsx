@@ -12,6 +12,8 @@ import { QuizView } from './components/QuizView.tsx';
 import { NotesView } from './components/NotesView.tsx';
 import { SettingsView } from './components/SettingsView.tsx';
 import { TimelineView } from './components/TimelineView.tsx';
+import { ProfileView } from './components/ProfileView.tsx';
+import { AskAIView } from './components/AskAIView.tsx';
 
 // Modals
 import { CategoryModal } from './components/modals/CategoryModal.tsx';
@@ -163,9 +165,12 @@ export default function App() {
   // Current category object
   const currentCategory = state.categories.find((c) => c.id === currentCatId) || null;
 
-  // Streak info
+  // Streak info including completed calendar tasks and sessions
   const allSessions = state.categories.flatMap((c) => c.sessions || []);
-  const streakInfo = calculateStreak(allSessions.map((s) => s.ts));
+  const streakInfo = calculateStreak(
+    allSessions.map((s) => s.ts),
+    state.studiedDates
+  );
 
   // Category Actions
   const handleCreateCategory = (name: string, subject: string, color: string) => {
@@ -544,65 +549,37 @@ export default function App() {
                 }}
               />
             ) : currentTab === 'profile' ? (
-              /* Profile Details View */
-              <div className="max-w-xl mx-auto p-6 rounded-2xl bg-[#12122a] border border-[#2a2a4a] space-y-6">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-purple-500 to-teal-400 flex items-center justify-center text-white font-extrabold text-2xl overflow-hidden shadow-lg shadow-purple-500/20">
-                    {state.profile.avatar ? (
-                      <img
-                        src={state.profile.avatar}
-                        alt="Avatar"
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      state.profile.name?.charAt(0).toUpperCase() || (
-                        <User className="w-8 h-8" />
-                      )
-                    )}
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-extrabold text-[#e8e8f0]">
-                      {state.profile.name ||
-                        (state.settings.lang === 'ar' ? 'طالب متميز' : 'Student')}
-                    </h2>
-                    <span className="text-xs text-[#8888a8]">
-                      {state.profile.email || state.profile.level}
-                    </span>
-                  </div>
-                </div>
-
-                {state.profile.bio && (
-                  <p className="text-xs text-[#8888a8] leading-relaxed italic">
-                    "{state.profile.bio}"
-                  </p>
-                )}
-
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="p-3 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a]/40 text-center">
-                    <span className="text-xl font-extrabold font-mono text-purple-400 block">
-                      {state.categories.length}
-                    </span>
-                    <span className="text-[11px] text-[#8888a8]">
-                      {t('categories', state.settings.lang)}
-                    </span>
-                  </div>
-                  <div className="p-3 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a]/40 text-center">
-                    <span className="text-xl font-extrabold font-mono text-teal-400 block">
-                      {allSessions.length}
-                    </span>
-                    <span className="text-[11px] text-[#8888a8]">
-                      {t('sessions', state.settings.lang)}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setIsProfileModalOpen(true)}
-                  className="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30 transition-all"
-                >
-                  {t('editProfile', state.settings.lang)}
-                </button>
-              </div>
+              <ProfileView
+                state={state}
+                lang={state.settings.lang}
+                onOpenEditModal={() => setIsProfileModalOpen(true)}
+                onOpenSettings={() => {
+                  setCurrentCatId(null);
+                  setCurrentTab('settings');
+                }}
+                onConnectGoogle={async () => {
+                  try {
+                    const token = await requestGoogleAccessToken();
+                    const profile = await fetchGoogleUserProfile(token);
+                    handleUpdateProfile({ ...profile, signedIn: true });
+                  } catch (e) {
+                    console.warn('Google connect error:', e);
+                  }
+                }}
+                onSelectCategory={(id) => {
+                  setCurrentCatId(id);
+                  setCurrentTab('overview');
+                }}
+              />
+            ) : currentTab === 'askai' ? (
+              <AskAIView
+                category={currentCategory}
+                lang={state.settings.lang}
+                onOpenSettings={() => {
+                  setCurrentCatId(null);
+                  setCurrentTab('settings');
+                }}
+              />
             ) : (
               /* Dashboard Home */
               <Dashboard
@@ -732,6 +709,17 @@ export default function App() {
                   category={currentCategory}
                   lang={state.settings.lang}
                   onUpdateCategory={handleUpdateCategory}
+                />
+              )}
+
+              {currentTab === 'askai' && (
+                <AskAIView
+                  category={currentCategory}
+                  lang={state.settings.lang}
+                  onOpenSettings={() => {
+                    setCurrentCatId(null);
+                    setCurrentTab('settings');
+                  }}
                 />
               )}
 
