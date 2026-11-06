@@ -25,6 +25,8 @@ import { CustomizeDashboardModal } from './components/modals/CustomizeDashboardM
 import { ProfileModal } from './components/modals/ProfileModal.tsx';
 import { SessionEndModal } from './components/modals/SessionEndModal.tsx';
 import { WelcomeTourModal } from './components/modals/WelcomeTourModal.tsx';
+import { InitialGoogleConnectModal } from './components/modals/InitialGoogleConnectModal.tsx';
+import { TermsModal } from './components/modals/TermsModal.tsx';
 
 import { AppState, Category, Card, PomodoroSession } from './types/index.ts';
 import {
@@ -44,12 +46,64 @@ import { playChime } from './utils/audio.ts';
 import { t } from './utils/translations.ts';
 import { User, Award, Layers, Clock } from 'lucide-react';
 
+// URL Hash routing parser
+function parseHashRoute(): { tab: string; catId: string | null } {
+  try {
+    const hash = window.location.hash || '';
+    if (hash.startsWith('#/category/')) {
+      const parts = hash.replace('#/category/', '').split('/');
+      const catId = parts[0] || null;
+      const tab = parts[1] || 'overview';
+      return { tab, catId };
+    }
+    if (hash.startsWith('#/')) {
+      const tab = hash.slice(2);
+      if (['timeline', 'profile', 'settings', 'askai', 'home'].includes(tab)) {
+        return { tab, catId: null };
+      }
+    }
+  } catch (e) {
+    console.warn('Hash parse error:', e);
+  }
+  return { tab: 'home', catId: null };
+}
+
 export default function App() {
   const [state, setState] = useState<AppState>(() => loadAppState());
 
-  // Navigation
-  const [currentCatId, setCurrentCatId] = useState<string | null>(null);
-  const [currentTab, setCurrentTab] = useState<string>('home');
+  // Navigation with URL Hash synchronization
+  const initialRoute = parseHashRoute();
+  const [currentCatId, setCurrentCatId] = useState<string | null>(initialRoute.catId);
+  const [currentTab, setCurrentTab] = useState<string>(initialRoute.tab);
+
+  const navigateTo = (tab: string, catId: string | null = null) => {
+    setCurrentTab(tab);
+    setCurrentCatId(catId);
+    const targetHash = catId ? `#/category/${catId}/${tab}` : `#/${tab}`;
+    if (window.location.hash !== targetHash) {
+      window.history.pushState({ tab, catId }, '', targetHash);
+    }
+  };
+
+  // Synchronize browser history (back/forward navigation & mobile back gestures)
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = parseHashRoute();
+      setCurrentTab(route.tab);
+      setCurrentCatId(route.catId);
+    };
+
+    if (!window.location.hash) {
+      window.history.replaceState({ tab: 'home', catId: null }, '', '#/home');
+    }
+
+    window.addEventListener('popstate', handlePopState);
+    window.addEventListener('hashchange', handlePopState);
+    return () => {
+      window.removeEventListener('popstate', handlePopState);
+      window.removeEventListener('hashchange', handlePopState);
+    };
+  }, []);
 
   // Responsive Layout
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -68,13 +122,68 @@ export default function App() {
   const [isSessionEndModalOpen, setIsSessionEndModalOpen] = useState(false);
   const [completedSessionDuration, setCompletedSessionDuration] = useState(25);
 
-  const [isWelcomeTourOpen, setIsWelcomeTourOpen] = useState(() => {
+  // Google Initial Onboarding Modal State
+  const [isInitialGoogleOpen, setIsInitialGoogleOpen] = useState(() => {
     try {
-      return localStorage.getItem('studyflow_onboarded') !== 'true';
+      const prompted = localStorage.getItem('studyflow_google_prompted') === 'true';
+      return !prompted && !state.profile?.signedIn;
     } catch {
       return false;
     }
   });
+
+  // Terms and Privacy Modal State
+  const [isTermsModalOpen, setIsTermsModalOpen] = useState(false);
+  const [termsModalTab, setTermsModalTab] = useState<'terms' | 'privacy'>('terms');
+
+  const handleOpenTerms = (tab: 'terms' | 'privacy') => {
+    setTermsModalTab(tab);
+    setIsTermsModalOpen(true);
+  };
+
+  // Starting Welcome Tour State
+  const [isWelcomeTourOpen, setIsWelcomeTourOpen] = useState(() => {
+    try {
+      const prompted = localStorage.getItem('studyflow_google_prompted') === 'true';
+      const onboarded = localStorage.getItem('studyflow_onboarded') === 'true';
+      return prompted && !onboarded;
+    } catch {
+      return false;
+    }
+  });
+
+  // Midnight AI Usage Auto-Reset
+  useEffect(() => {
+    const checkDailyReset = () => {
+      const todayKey = new Date().toISOString().slice(0, 10);
+      setState((prev) => {
+        if (prev.settings.aiUsageDate !== todayKey) {
+          return {
+            ...prev,
+            settings: {
+              ...prev.settings,
+              aiUsageToday: 0,
+              aiUsageDate: todayKey,
+            },
+          };
+        }
+        return prev;
+      });
+    };
+
+    checkDailyReset();
+    const interval = setInterval(checkDailyReset, 30000); // Check every 30s
+    const handleVisChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkDailyReset();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisChange);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisChange);
+    };
+  }, []);
 
   // Pomodoro Timer State
   const defaultPomoMins = state.settings.pomoWorkMinutes || 25;
@@ -514,6 +623,7 @@ export default function App() {
                 onImportState={handleImportFile}
                 onResetAll={handleResetAll}
                 onStartTutorial={() => setIsWelcomeTourOpen(true)}
+                onOpenTerms={handleOpenTerms}
               />
             ) : currentTab === 'timeline' ? (
               <TimelineView
@@ -912,6 +1022,47 @@ export default function App() {
           } catch {}
           setIsWelcomeTourOpen(false);
         }}
+      />
+
+      {/* Initial Google Connect Pop-up (Shows before tour on first visit) */}
+      <InitialGoogleConnectModal
+        isOpen={isInitialGoogleOpen}
+        lang={state.settings.lang}
+        onConnectGoogle={async () => {
+          try {
+            const token = await requestGoogleAccessToken();
+            const profile = await fetchGoogleUserProfile(token);
+            handleUpdateProfile({ ...profile, signedIn: true });
+          } catch (e) {
+            console.warn('Initial Google Connect error:', e);
+          } finally {
+            try {
+              localStorage.setItem('studyflow_google_prompted', 'true');
+            } catch {}
+            setIsInitialGoogleOpen(false);
+            if (localStorage.getItem('studyflow_onboarded') !== 'true') {
+              setIsWelcomeTourOpen(true);
+            }
+          }
+        }}
+        onSkip={() => {
+          try {
+            localStorage.setItem('studyflow_google_prompted', 'true');
+          } catch {}
+          setIsInitialGoogleOpen(false);
+          if (localStorage.getItem('studyflow_onboarded') !== 'true') {
+            setIsWelcomeTourOpen(true);
+          }
+        }}
+        onOpenTerms={handleOpenTerms}
+      />
+
+      {/* Comprehensive In-App Terms of Service & Privacy Policy Modal */}
+      <TermsModal
+        isOpen={isTermsModalOpen}
+        initialTab={termsModalTab}
+        lang={state.settings.lang}
+        onClose={() => setIsTermsModalOpen(false)}
       />
 
       <CustomizeDashboardModal

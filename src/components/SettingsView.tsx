@@ -27,6 +27,7 @@ import {
   ShieldCheck,
   FileText,
 } from 'lucide-react';
+import { GoogleLogo } from './GoogleLogo.tsx';
 import { AppSettings, AppState, UserProfile } from '../types/index.ts';
 import { PRIMARY_COLORS, exportAppState } from '../utils/storage.ts';
 import { t } from '../utils/translations.ts';
@@ -56,6 +57,7 @@ interface SettingsViewProps {
   onImportState: (file: File) => void;
   onResetAll: () => void;
   onStartTutorial?: () => void;
+  onOpenTerms?: (tab: 'terms' | 'privacy') => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -67,7 +69,9 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onImportState,
   onResetAll,
   onStartTutorial,
+  onOpenTerms,
 }) => {
+  const [showByokExplainer, setShowByokExplainer] = useState(false);
   // Appearance & Language State
   const theme = state.settings.theme || 'black';
   const currentLang = state.settings.lang || 'en';
@@ -650,12 +654,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       {/* 2. Real Gemini AI Settings (BYOK) - 100% Genuine, No Fake Inputs */}
       <div className="p-6 rounded-2xl bg-[#0b0c10] border border-[#1a1b22] space-y-5 shadow-lg">
         <div className="flex items-center justify-between">
-          <h3 className="font-extrabold text-sm text-[#f3f4f6] flex items-center gap-2">
-            <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
-            <span>
-              {lang === 'ar' ? 'محرك الذكاء الاصطناعي (Google Gemini BYOK)' : 'Google Gemini AI Engine (BYOK)'}
-            </span>
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="font-extrabold text-sm text-[#f3f4f6] flex items-center gap-2">
+              <Sparkles className="w-4 h-4" style={{ color: primaryColor }} />
+              <span>
+                {lang === 'ar' ? 'محرك الذكاء الاصطناعي (Google Gemini BYOK)' : 'Google Gemini AI Engine (BYOK)'}
+              </span>
+            </h3>
+            {/* Circular Question Mark Tooltip Trigger */}
+            <button
+              type="button"
+              onClick={() => setShowByokExplainer(!showByokExplainer)}
+              className="w-5 h-5 rounded-full border border-purple-400/40 bg-purple-500/15 hover:bg-purple-500/30 text-purple-300 flex items-center justify-center text-[11px] font-black transition-all hover:scale-110 active:scale-95 shadow-sm"
+              title={lang === 'ar' ? 'ما هو BYOK؟ اضغط للشرح' : 'What is BYOK? Click for explanation'}
+            >
+              ?
+            </button>
+          </div>
+
           <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
               apiKeyInput.trim()
@@ -668,6 +684,41 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               : lang === 'ar' ? 'لا يوجد مفتاح' : 'NO KEY SET'}
           </span>
         </div>
+
+        {/* Interactive BYOK Explanation Card */}
+        {showByokExplainer && (
+          <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 text-purple-200 text-xs space-y-2 animate-in fade-in duration-200">
+            <div className="flex items-center justify-between">
+              <span className="font-extrabold text-white flex items-center gap-1.5">
+                <HelpCircle className="w-4 h-4 text-purple-400" />
+                <span>{lang === 'ar' ? 'ما معنى نموذج BYOK (أحضر مفتاحك الخاص)؟' : 'What is BYOK (Bring Your Own Key)?'}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowByokExplainer(false)}
+                className="text-purple-400 hover:text-white text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-[11px] text-purple-200/90 leading-relaxed">
+              {lang === 'ar'
+                ? 'مفهوم BYOK يعني أنك تستخدم مفتاح API المجاني الخاص بك مباشرة من Google AI Studio داخل متصفحك. لا توجد خوادم وسيطة تخزن مفتاحك أو تراقب طلباتك، بل يتم التشفير والحفظ محلياً في جهازك ومزامنتها تلقائياً مع نسختك في Google Drive. تمنحك Google حصة مجانية تصل إلى 20 طلباً يومياً تتجدد تلقائياً كل منتصف ليل.'
+                : 'BYOK (Bring Your Own Key) means you connect your own free Google Gemini API key directly from Google AI Studio. Your key runs completely client-side in your browser, keeping your data 100% private. It is never routed through any third-party backend servers. Google provides 20 free calls daily, reset every midnight.'}
+            </p>
+            <div className="pt-1">
+              <a
+                href="https://aistudio.google.com/app/apikey"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-teal-300 hover:underline"
+              >
+                <span>{lang === 'ar' ? 'احصل على مفتاح مجاني من Google AI Studio ←' : 'Get your free key from Google AI Studio →'}</span>
+                <ExternalLink className="w-3 h-3" />
+              </a>
+            </div>
+          </div>
+        )}
 
         <p className="text-[11px] text-[#8c909e] leading-relaxed">
           {lang === 'ar'
@@ -874,15 +925,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="button"
               disabled={isConnectingGoogle}
               onClick={handleConnectGoogle}
-              style={{ backgroundColor: primaryColor }}
-              className="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all shadow-sm flex items-center gap-1.5"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-800 bg-white hover:bg-slate-100 transition-all shadow-md flex items-center gap-2 active:scale-95 disabled:opacity-50"
             >
               {isConnectingGoogle ? (
-                <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-800" />
               ) : (
-                <Cloud className="w-3.5 h-3.5" />
+                <GoogleLogo className="w-4 h-4 shrink-0" />
               )}
-              <span>{t('connect', lang)}</span>
+              <span>{lang === 'ar' ? 'ربط بحساب Google' : 'Sign in with Google'}</span>
             </button>
           ) : (
             <button
@@ -1138,37 +1188,35 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             : 'StudyFlow complies with Google API User Data Policies. Your flashcards and study statistics are stored locally and within your private Google Drive appDataFolder.'}
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-          <a
-            href="./privacy.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between p-3.5 rounded-xl bg-[#121318] border border-[#20222a] hover:border-purple-500/40 text-xs font-semibold text-[#f3f4f6] group transition-all"
+          <button
+            type="button"
+            onClick={() => onOpenTerms ? onOpenTerms('privacy') : window.open('./privacy.html', '_blank')}
+            className="flex items-center justify-between p-3.5 rounded-xl bg-[#121318] border border-[#20222a] hover:border-purple-500/40 text-xs font-semibold text-[#f3f4f6] group transition-all text-start"
           >
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-4 h-4 text-purple-400 group-hover:scale-110 transition-transform" />
               <div>
                 <span className="block font-bold text-xs">{lang === 'ar' ? 'سياسة الخصوصية' : 'Privacy Policy'}</span>
-                <span className="block text-[10px] text-[#8c909e]">privacy.html</span>
+                <span className="block text-[10px] text-[#8c909e]">{lang === 'ar' ? 'عرض السياسة المعتمدة' : 'View Google Compliant Policy'}</span>
               </div>
             </div>
             <ExternalLink className="w-3.5 h-3.5 text-[#8c909e] group-hover:text-purple-400 transition-colors" />
-          </a>
+          </button>
 
-          <a
-            href="./terms.html"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-between p-3.5 rounded-xl bg-[#121318] border border-[#20222a] hover:border-purple-500/40 text-xs font-semibold text-[#f3f4f6] group transition-all"
+          <button
+            type="button"
+            onClick={() => onOpenTerms ? onOpenTerms('terms') : window.open('./terms.html', '_blank')}
+            className="flex items-center justify-between p-3.5 rounded-xl bg-[#121318] border border-[#20222a] hover:border-purple-500/40 text-xs font-semibold text-[#f3f4f6] group transition-all text-start"
           >
             <div className="flex items-center gap-2.5">
               <FileText className="w-4 h-4 text-teal-400 group-hover:scale-110 transition-transform" />
               <div>
                 <span className="block font-bold text-xs">{lang === 'ar' ? 'شروط الخدمة' : 'Terms of Service'}</span>
-                <span className="block text-[10px] text-[#8c909e]">terms.html</span>
+                <span className="block text-[10px] text-[#8c909e]">{lang === 'ar' ? 'عرض شروط الاستخدام' : 'View Terms & Conditions'}</span>
               </div>
             </div>
             <ExternalLink className="w-3.5 h-3.5 text-[#8c909e] group-hover:text-teal-400 transition-colors" />
-          </a>
+          </button>
         </div>
       </div>
     </div>

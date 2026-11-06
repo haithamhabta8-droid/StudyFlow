@@ -150,6 +150,7 @@ export interface AppSettings {
   showCompletedTasks: boolean;
   sidebarCollapsed: boolean;
   aiUsageToday: number; // count of calls
+  aiUsageDate?: string; // YYYY-MM-DD for automatic daily reset
   aiTokensToday: number;
   models?: AIModelConfig[];
   activeModelId?: string;

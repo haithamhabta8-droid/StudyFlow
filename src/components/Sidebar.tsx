@@ -112,6 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-4 border-b border-[#2a2a4a]/80 shrink-0">
           <button
+            data-tour="workspace"
             onClick={onGoHome}
             className="flex items-center gap-3 text-start group focus:outline-none"
           >
@@ -370,6 +371,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {/* Footer / User Profile (Clean single profile button, duplicate settings removed) */}
         <div className="p-3 border-t border-[#2a2a4a] bg-[#12122a] shrink-0">
           <button
+            data-tour="profile-btn"
             onClick={onOpenProfile}
             className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#1c1c3a] transition-colors text-start focus:outline-none"
           >

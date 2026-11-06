@@ -335,6 +335,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Drag handle using dnd-kit attributes & listeners with touch-none */}
         <div
+          data-tour="drag-handle"
           {...dragHandleProps}
           title={lang === 'ar' ? 'اضغط واسحب لإعادة الترتيب' : 'Drag to reorder'}
           className="cursor-grab active:cursor-grabbing p-1.5 rounded-lg text-[#8888a8] hover:text-purple-400 hover:bg-[#1c1c3a] touch-none transition-colors"
@@ -355,7 +356,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
     switch (w.id) {
       case 'pomodoro':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-purple-500/30 flex flex-col justify-between h-full">
+          <div
+            data-tour="pomodoro"
+            className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-purple-500/30 flex flex-col justify-between h-full"
+          >
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Clock className="w-4 h-4 text-purple-400" />
@@ -1047,7 +1051,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       case 'actions':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-purple-500/30 flex flex-col justify-between h-full">
+          <div
+            data-tour="quick-actions"
+            className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-purple-500/30 flex flex-col justify-between h-full"
+          >
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-extrabold text-sm text-[#e8e8f0]">
                 {t('widgetActions', lang)}

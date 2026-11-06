@@ -83,9 +83,9 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <header className="sticky top-0 z-40 bg-[#0a0a1a]/85 backdrop-blur-md border-b border-[#2a2a4a] px-4 lg:px-8 py-3 transition-colors">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 max-w-7xl mx-auto">
+      <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 max-w-7xl mx-auto">
         {/* Left / Start Zone */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 shrink-0">
           {/* Capsule Button Bar (for mobile & collapsed sidebar) */}
           <div className="flex items-center gap-1 bg-[#12122a] border border-[#2a2a4a] p-1 rounded-full shadow-sm">
             <button
@@ -123,13 +123,13 @@ export const Header: React.FC<HeaderProps> = ({
                   className="w-3 h-3 rounded-full shrink-0 shadow-sm"
                   style={{ backgroundColor: currentCategory.color }}
                 />
-                <h1 className="text-base lg:text-lg font-extrabold text-[#e8e8f0] truncate">
+                <h1 className="text-base lg:text-lg font-extrabold text-[#e8e8f0] truncate max-w-[140px] sm:max-w-[220px]">
                   {lang === 'ar'
                     ? currentCategory.name
                     : currentCategory.nameEn || currentCategory.name}
                 </h1>
                 {(currentCategory.subject || currentCategory.subjectEn) && (
-                  <span className="hidden sm:inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 truncate">
+                  <span className="hidden sm:inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-400 border border-purple-500/20 truncate max-w-[120px]">
                     {lang === 'ar'
                       ? currentCategory.subject
                       : currentCategory.subjectEn || currentCategory.subject}
@@ -151,14 +151,14 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Center Zone: Tabs (Visible when inside a category) */}
         {currentCategory && currentTab !== 'home' && (
-          <nav className="flex items-center gap-1 overflow-x-auto py-1 px-1 bg-[#12122a] border border-[#2a2a4a] rounded-xl scrollbar-none max-w-full">
+          <nav className="flex items-center gap-1.5 overflow-x-auto py-1 px-2 bg-[#12122a] border border-[#2a2a4a] rounded-xl scrollbar-none min-w-0 max-w-full order-3 lg:order-2 w-full lg:w-auto">
             {tabs.map((tab) => {
               const active = currentTab === tab.id;
               return (
                 <button
                   key={tab.id}
                   onClick={() => onSwitchTab(tab.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-all ${
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold shrink-0 whitespace-nowrap transition-all ${
                     active
                       ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
                       : 'text-[#8888a8] hover:text-[#e8e8f0] hover:bg-[#1c1c3a]'
@@ -173,7 +173,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Right / End Zone: Badges & Controls */}
-        <div className="flex items-center gap-2 ms-auto lg:ms-0">
+        <div className="flex items-center gap-2 shrink-0 ms-auto order-2 lg:order-3">
           {/* Live Online / Offline Network Badge */}
           <div
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
@@ -198,6 +198,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Timeline / Calendar Shortcut */}
           {onOpenTimeline && (
             <button
+              data-tour="timeline-btn"
               onClick={onOpenTimeline}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 text-xs font-bold text-[#e8e8f0] transition-colors"
               title="Timeline & Google Calendar"
@@ -209,6 +210,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Streak Flame Badge */}
           <button
+            data-tour="streak-badge"
             onClick={onOpenStreakModal}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${
               streakActiveToday

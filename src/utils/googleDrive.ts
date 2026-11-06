@@ -113,7 +113,8 @@ export function requestGoogleAccessToken(): Promise<string> {
         },
       });
 
-      client.requestAccessToken();
+      // Explicitly prompt for consent to ensure Google Calendar & Drive permissions are presented
+      client.requestAccessToken({ prompt: 'consent select_account' });
     } catch (err: any) {
       reject(new Error(err?.message || 'Could not launch Google authentication window.'));
     }

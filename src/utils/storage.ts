@@ -91,9 +91,56 @@ export function getDefaultState(): AppState {
   };
 }
 
+export function setStorageCookie(name: string, value: string, days = 365): void {
+  try {
+    if (typeof document === 'undefined') return;
+    const expires = new Date(Date.now() + days * 864e5).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  } catch (e) {
+    console.warn('Failed to set cookie:', e);
+  }
+}
+
+export function getStorageCookie(name: string): string | null {
+  try {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(new RegExp('(^|; )' + name + '=([^;]*)'));
+    return match ? decodeURIComponent(match[2]) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function loadAppState(): AppState {
   try {
-    const raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('studyFlow_v13');
+    const todayKey = new Date().toISOString().slice(0, 10);
+    let raw = localStorage.getItem(STORE_KEY) || localStorage.getItem('studyFlow_v13');
+    
+    // If localStorage was cleared, attempt recovery from cookies
+    if (!raw) {
+      const cookieData = getStorageCookie('studyflow_meta');
+      if (cookieData) {
+        try {
+          const cookieParsed = JSON.parse(cookieData);
+          const def = getDefaultState();
+          return {
+            ...def,
+            profile: { ...def.profile, ...(cookieParsed.profile || {}) },
+            settings: {
+              ...def.settings,
+              theme: cookieParsed.theme || def.settings.theme,
+              lang: cookieParsed.lang || def.settings.lang,
+              primaryColor: cookieParsed.primaryColor || def.settings.primaryColor,
+              aiUsageDate: todayKey,
+              aiUsageToday: 0,
+            },
+          };
+        } catch {
+          // fallback to default
+        }
+      }
+    }
+
     if (raw) {
       const parsed = JSON.parse(raw);
       const def = getDefaultState();
@@ -119,6 +166,12 @@ export function loadAppState(): AppState {
         loadedSettings.provider = 'gemini';
       }
 
+      // Automatically reset daily AI usage if day has passed
+      if (loadedSettings.aiUsageDate !== todayKey) {
+        loadedSettings.aiUsageToday = 0;
+        loadedSettings.aiUsageDate = todayKey;
+      }
+
       return {
         categories: Array.isArray(parsed.categories) ? parsed.categories : [],
         pinned: Array.isArray(parsed.pinned) ? parsed.pinned : [],
@@ -138,8 +191,25 @@ export function loadAppState(): AppState {
 export function saveAppState(state: AppState): void {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(state));
+
+    // Dual persistence: sync core preferences to cookie as well
+    const metaToCookie = {
+      theme: state.settings.theme,
+      lang: state.settings.lang,
+      primaryColor: state.settings.primaryColor,
+      profile: {
+        name: state.profile?.name,
+        email: state.profile?.email,
+        signedIn: state.profile?.signedIn,
+      },
+      aiUsageToday: state.settings.aiUsageToday,
+      aiUsageDate: state.settings.aiUsageDate,
+      categoriesCount: state.categories.length,
+      updatedAt: Date.now(),
+    };
+    setStorageCookie('studyflow_meta', JSON.stringify(metaToCookie), 365);
   } catch (e) {
-    console.error('Failed to save state to localStorage:', e);
+    console.error('Failed to save state to localStorage / cookie:', e);
   }
 }
 
