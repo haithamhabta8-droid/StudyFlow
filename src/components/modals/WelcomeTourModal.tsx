@@ -40,15 +40,15 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     selector: '[data-tour="drag-handle"]',
-    titleAr: 'تحريك وتغيير حجم الودجات',
-    titleEn: 'Draggable & Resizable Widgets',
-    descAr: 'اسحب الودجت من مقبض النقاط الستة لإعادة ترتيب اللوحة، واستخدم زر الحجم لتغيير العرض.',
-    descEn: 'Drag widgets by the six-dots handle to rearrange them, or tap size to cycle width.',
+    titleAr: 'تحريك وتغيير حجم الودجات بسلاسة',
+    titleEn: 'Smooth Drag & Resizable Widgets',
+    descAr: 'اسحب الودجت من مقبض النقاط الستة لإعادة ترتيب اللوحة بسلاسة أندرويد، أو اسحب شريط الحجم السفلي لتغيير العرض فوراً.',
+    descEn: 'Drag widgets by the handle to rearrange them smoothly like an Android launcher, or slide the bottom bar to resize.',
   },
   {
     selector: '[data-tour="timeline-btn"]',
-    titleAr: 'الجدول الزمني وتقويم Google',
-    titleEn: 'Timeline & Google Calendar',
+    titleAr: 'الجدول الدراسي وتقويم Google',
+    titleEn: 'Timetable & Google Calendar',
     descAr: 'استورد مواعيدك من Google Calendar وتصفحها بدون إنترنت مع ميزة تأكيد الإنجاز.',
     descEn: 'Import your Google Calendar schedule, work offline, and confirm completed tasks.',
   },
@@ -62,9 +62,9 @@ const TOUR_STEPS: TourStep[] = [
   {
     selector: '[data-tour="streak-badge"]',
     titleAr: 'سلسلة الأيام الدراسية (Streak)',
-    titleEn: 'Study Streak Flame',
-    descAr: 'أنجز جلسات المذاكرة والمهام اليومية لرفع شعلة الحماس وبناء عادة دراسية مستمرة.',
-    descEn: 'Complete pomodoros and calendar tasks daily to fuel your flame and maintain streaks.',
+    titleEn: 'Daily Study Streak & Milestones',
+    descAr: 'اكسب يوماً جديداً في سلسلتك عند إكمال هدفك الدراسي اليومي بالكامل باستخدام مؤقت بومودورو—في اللحظة التي يتجاوز فيها وقت مذاكرتك هدف اليوم يُحتسب لك يوم جديد فوراً!',
+    descEn: 'Earn a new day on your streak by clearing your Daily Study Goal with the Pomodoro timer—as soon as your study time reaches your daily goal, today unlocks and +1 day is added to your streak!',
   },
   {
     selector: '[data-tour="profile-btn"]',
@@ -87,6 +87,12 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const isAr = currentLang === 'ar';
 
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+    }
+  }, [isOpen]);
+
   const updateTargetRect = () => {
     if (step < 1 || step > TOUR_STEPS.length) {
       setTargetRect(null);
@@ -96,7 +102,19 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
     const el = document.querySelector(currentTourStep.selector);
     if (el) {
       el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
-      setTargetRect(el.getBoundingClientRect());
+      const rect = el.getBoundingClientRect();
+      if (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.left >= 0 &&
+        rect.right <= window.innerWidth + 20 &&
+        rect.top >= -20 &&
+        rect.bottom <= window.innerHeight + 20
+      ) {
+        setTargetRect(rect);
+      } else {
+        setTargetRect(null);
+      }
     } else {
       setTargetRect(null);
     }
@@ -128,7 +146,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
         className="fixed inset-0 z-[110] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-300"
       >
         <div className="bg-[#12122a] border border-[#2a2a4a] rounded-3xl p-7 sm:p-9 max-w-md w-full shadow-2xl space-y-6 text-center relative overflow-hidden">
-          <div className="w-16 h-16 rounded-2xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center mx-auto text-purple-400 shadow-lg shadow-purple-900/30">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-600/20 border border-emerald-500/30 flex items-center justify-center mx-auto text-emerald-400 shadow-lg shadow-emerald-950/40">
             <Globe className="w-8 h-8" />
           </div>
 
@@ -136,7 +154,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
             <h2 className="text-xl sm:text-2xl font-black text-[#e8e8f0]">
               اختر لغة الواجهة المفضلة
             </h2>
-            <p className="text-sm font-bold text-purple-300">
+            <p className="text-sm font-bold text-emerald-400">
               Choose Your Preferred Language
             </p>
             <p className="text-xs text-[#8888a8] leading-relaxed pt-1">
@@ -153,7 +171,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
                 onSelectLang('ar');
                 setStep(1);
               }}
-              className="p-4 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-purple-500 hover:bg-purple-600/15 text-white font-black text-lg transition-all flex flex-col items-center gap-1.5 shadow-md active:scale-95"
+              className="p-4 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500 hover:bg-emerald-600/15 text-white font-black text-lg transition-all flex flex-col items-center gap-1.5 shadow-md active:scale-95"
             >
               <span>العربية</span>
               <span className="text-[11px] font-medium text-[#8888a8]">واجهة عربية (RTL)</span>
@@ -165,7 +183,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
                 onSelectLang('en');
                 setStep(1);
               }}
-              className="p-4 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-purple-500 hover:bg-purple-600/15 text-white font-black text-lg transition-all flex flex-col items-center gap-1.5 shadow-md active:scale-95"
+              className="p-4 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500 hover:bg-emerald-600/15 text-white font-black text-lg transition-all flex flex-col items-center gap-1.5 shadow-md active:scale-95"
             >
               <span>English</span>
               <span className="text-[11px] font-medium text-[#8888a8]">English UI (LTR)</span>
@@ -210,13 +228,15 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-[110] pointer-events-auto">
-      {/* Semi-transparent dark overlay */}
-      <div
-        className="fixed inset-0 bg-black/70 backdrop-blur-[2px] transition-opacity duration-300 pointer-events-auto"
-        onClick={onFinish}
-      />
+      {/* Clickable dark backdrop without any blur to keep targeted elements 100% crisp and sharp */}
+      {!targetRect && (
+        <div
+          className="fixed inset-0 bg-black/75 transition-opacity duration-300 pointer-events-auto"
+          onClick={onFinish}
+        />
+      )}
 
-      {/* Target Element Spotlight Ring (Matching image_3ddb28e7.png) */}
+      {/* Target Element Spotlight Cutout (100% crisp, zero blur, dark green ring) */}
       {targetRect && (
         <div
           style={{
@@ -226,14 +246,22 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
             width: `${targetRect.width + 12}px`,
             height: `${targetRect.height + 12}px`,
           }}
-          className="rounded-2xl ring-2 ring-purple-400/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.65),0_0_25px_rgba(168,85,247,0.5)] pointer-events-none transition-all duration-300 ease-out z-[111]"
+          className="rounded-2xl ring-2 ring-emerald-500 shadow-[0_0_0_9999px_rgba(0,0,0,0.78),0_0_20px_rgba(16,185,129,0.35)] pointer-events-none transition-all duration-300 ease-out z-[111]"
         >
-          {/* Subtle glowing outline animation */}
-          <div className="w-full h-full rounded-2xl border-2 border-dashed border-teal-400/70 animate-pulse pointer-events-none" />
+          {/* Crisp glowing green outline animation */}
+          <div className="w-full h-full rounded-2xl border-2 border-dashed border-emerald-400 animate-pulse pointer-events-none" />
         </div>
       )}
 
-      {/* Floating Tour Card (Faithfully reproducing image_3ddb28e7.png) */}
+      {/* Transparent backdrop click-catcher when spotlight is active */}
+      {targetRect && (
+        <div
+          className="fixed inset-0 pointer-events-auto z-[110]"
+          onClick={onFinish}
+        />
+      )}
+
+      {/* Floating Tour Card */}
       <div
         style={{
           position: 'fixed',
@@ -241,21 +269,21 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
           left: `${tooltipLeft}px`,
           width: '360px',
         }}
-        className="z-[112] bg-[#12131a] border border-[#2a2c3a] rounded-3xl p-6 shadow-2xl shadow-black/80 space-y-4 animate-in fade-in zoom-in-95 duration-200"
+        className="z-[112] bg-[#12131a] border border-[#2a2c3a] rounded-3xl p-6 shadow-2xl shadow-black/90 space-y-4 animate-in fade-in zoom-in-95 duration-200"
       >
-        {/* Top Header Row: Diamond Icon + Centered Dots (image_3ddb28e7.png) */}
+        {/* Top Header Row: Green Diamond Icon + Centered Green Dots */}
         <div className="flex items-center justify-between">
-          {/* Diamond Icon */}
-          <div className="w-5 h-5 rotate-45 border-2 border-[#8888a8]/60 rounded-[3px] bg-purple-500/10 shadow-sm shrink-0" />
+          {/* Diamond Icon in Green */}
+          <div className="w-5 h-5 rotate-45 border-2 border-emerald-500/60 rounded-[3px] bg-emerald-500/15 shadow-sm shrink-0" />
 
-          {/* Centered Pagination Dots */}
+          {/* Centered Pagination Dots (Active dot is Emerald Green) */}
           <div className="flex items-center gap-1.5">
             {TOUR_STEPS.map((_, idx) => (
               <span
                 key={idx}
                 className={`w-1.5 h-1.5 rounded-full transition-all ${
                   idx === step - 1
-                    ? 'w-4 bg-purple-400 shadow-sm shadow-purple-400/50'
+                    ? 'w-4 bg-emerald-500 shadow-sm shadow-emerald-500/50'
                     : 'bg-[#3a3c4a]'
                 }`}
               />
@@ -275,7 +303,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
           </p>
         </div>
 
-        {/* Footer Navigation Bar (image_3ddb28e7.png) */}
+        {/* Footer Navigation Bar */}
         <div className="flex items-center justify-between pt-2">
           {/* Skip tour button */}
           <button
@@ -307,7 +335,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
               <button
                 type="button"
                 onClick={() => setStep((prev) => prev + 1)}
-                className="px-4 py-2 rounded-xl bg-[#4a5568] hover:bg-[#5a6578] text-white font-bold text-xs shadow-md transition-all active:scale-95"
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-bold text-xs shadow-md shadow-emerald-950/40 border border-emerald-600/60 transition-all active:scale-95"
               >
                 {isAr ? 'التالي' : 'Next'}
               </button>
@@ -315,7 +343,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
               <button
                 type="button"
                 onClick={onFinish}
-                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md transition-all active:scale-95 flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 active:bg-emerald-800 text-white font-bold text-xs shadow-md shadow-emerald-950/40 border border-emerald-600/60 transition-all active:scale-95 flex items-center gap-1.5"
               >
                 <Check className="w-3.5 h-3.5 stroke-[3]" />
                 <span>{isAr ? 'إنهاء' : 'Finish'}</span>

@@ -178,8 +178,8 @@ export const Header: React.FC<HeaderProps> = ({
           <div
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
               isOnline
-                ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
-                : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                ? 'bg-emerald-500/15 border-emerald-500/50 text-emerald-300 font-bold shadow-sm'
+                : 'bg-amber-500/15 border-amber-500/50 text-amber-200 font-bold'
             }`}
             title={
               isOnline
@@ -192,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
                 isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'
               }`}
             />
-            <span className="text-[11px] font-semibold">{isOnline ? 'Online' : 'Offline'}</span>
+            <span className="text-xs font-bold">{isOnline ? 'Online' : 'Offline'}</span>
           </div>
 
           {/* Timeline / Calendar Shortcut */}
@@ -200,11 +200,11 @@ export const Header: React.FC<HeaderProps> = ({
             <button
               data-tour="timeline-btn"
               onClick={onOpenTimeline}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 text-xs font-bold text-[#e8e8f0] transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 text-xs font-bold text-[#e8e8f0] hover:text-white transition-colors"
               title="Timeline & Google Calendar"
             >
               <Calendar className="w-3.5 h-3.5 text-purple-400" />
-              <span className="hidden sm:inline">{lang === 'ar' ? 'الجدول' : 'Timeline'}</span>
+              <span className="hidden sm:inline">{lang === 'ar' ? 'الجدول الدراسي' : 'Timetable'}</span>
             </button>
           )}
 
@@ -214,7 +214,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onOpenStreakModal}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-extrabold border transition-all ${
               streakActiveToday
-                ? 'bg-rose-500/10 border-rose-500/30 text-rose-400 hover:bg-rose-500/20 shadow-sm shadow-rose-950'
+                ? 'bg-rose-500/15 border-rose-500/40 text-rose-300 hover:bg-rose-500/25 shadow-sm shadow-rose-950'
                 : 'bg-[#12122a] border-[#2a2a4a] text-[#8888a8] hover:border-purple-500/40 hover:text-purple-300'
             }`}
             title={streakActiveToday ? t('streakActiveToday', lang) : t('streakInactive', lang)}
@@ -222,12 +222,22 @@ export const Header: React.FC<HeaderProps> = ({
             <Flame
               className={`w-4 h-4 ${
                 streakActiveToday
-                  ? 'fill-rose-500 text-rose-500 animate-pulse'
+                  ? 'fill-rose-500 text-rose-400 animate-pulse'
                   : 'text-[#8888a8]'
               }`}
             />
             <span className="font-mono text-sm">{streakCount}</span>
             <span className="text-[11px] font-medium">{t('streakShort', lang)}</span>
+          </button>
+
+          {/* Settings Shortcut Button (matching screenshot image_09470a4e.png) */}
+          <button
+            onClick={onOpenSettings}
+            title={t('settings', lang)}
+            aria-label={t('settings', lang)}
+            className="w-8 h-8 rounded-full bg-[#12122a] border border-[#2a2a4a] hover:border-purple-500/40 flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
+          >
+            <Settings className="w-4 h-4" />
           </button>
         </div>
       </div>

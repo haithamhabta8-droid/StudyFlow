@@ -155,6 +155,8 @@ export interface AppSettings {
   models?: AIModelConfig[];
   activeModelId?: string;
   pomoWorkMinutes?: number;
+  aiTier?: 'free' | 'paid';
+  uniformWidgetsMigrated?: boolean;
 }
 
 export interface CalendarEventItem {
@@ -179,4 +181,5 @@ export interface AppState {
   calendarEvents?: CalendarEventItem[];
   studiedDates?: string[]; // Array of YYYY-MM-DD
   lastCalendarSync?: number;
+  lifetimeFocusSeconds?: number;
 }

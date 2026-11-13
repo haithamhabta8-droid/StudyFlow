@@ -14,10 +14,12 @@ import {
   BookOpen,
 } from 'lucide-react';
 import { GoogleLogo } from './GoogleLogo.tsx';
+import { AppState, Category, UserProfile } from '../types/index.ts';
 import {
   calculateCardStats,
   calculateWeightedGPA,
   calculateStreak,
+  getQualifiedStreakDates,
 } from '../utils/calculations.ts';
 import { t } from '../utils/translations.ts';
 
@@ -44,10 +46,11 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const allQuizzes = state.categories.flatMap((c) => c.quizzes || []);
   const cardStats = calculateCardStats(state.categories);
   const gpaInfo = calculateWeightedGPA(allGrades);
-  const streakInfo = calculateStreak(
-    allSessions.map((s) => s.ts),
-    state.studiedDates
+  const qualifiedStreakDates = getQualifiedStreakDates(
+    allSessions,
+    state.settings.goalDaily || 60
   );
+  const streakInfo = calculateStreak([], qualifiedStreakDates);
 
   const scoredQuizzes = allQuizzes.filter((q) => q.score !== undefined);
   const avgQuizScore =

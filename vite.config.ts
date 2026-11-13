@@ -24,5 +24,15 @@ export default defineConfig(() => {
       // Disable file watching when DISABLE_HMR is true to save CPU during agent edits.
       watch: process.env.DISABLE_HMR === 'true' ? null : {},
     },
+    build: {
+      sourcemap: false,
+      minify: 'esbuild' as const,
+      cssMinify: true,
+      reportCompressedSize: false,
+    },
+    esbuild: {
+      legalComments: 'none' as const,
+      drop: process.env.NODE_ENV === 'production' ? (['debugger'] as ('console' | 'debugger')[]) : [],
+    },
   };
 });

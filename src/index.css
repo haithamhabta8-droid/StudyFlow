@@ -10,8 +10,8 @@
   --text: #e8e8f0;
   --text-muted: #8888a8;
   --text-dim: #5a5a78;
-  --primary: #7c5cfc;
-  --primary-glow: rgba(124, 92, 252, 0.35);
+  --primary: #10b981;
+  --primary-glow: rgba(16, 185, 129, 0.35);
   --accent: #00d4aa;
   --accent-glow: rgba(0, 212, 170, 0.2);
   --danger: #ff4d6a;
@@ -247,27 +247,81 @@ html[dir="ltr"] body {
 }
 
 .bg-purple-600,
-.bg-purple-500 {
+.bg-purple-500,
+.bg-emerald-600,
+.bg-emerald-500,
+button.bg-purple-600,
+button.bg-purple-500,
+button.bg-emerald-600,
+button.bg-emerald-500,
+button.bg-emerald-700 {
   background-color: var(--primary) !important;
+  color: #ffffff !important;
+}
+
+button.bg-purple-600 *,
+button.bg-purple-500 *,
+button.bg-emerald-600 *,
+button.bg-emerald-500 *,
+button.bg-emerald-700 *,
+.bg-purple-600 > span,
+.bg-purple-500 > span,
+.bg-emerald-600 > span,
+.bg-emerald-500 > span {
+  color: #ffffff !important;
 }
 
 .hover\:bg-purple-500:hover,
-.hover\:bg-purple-600:hover {
+.hover\:bg-purple-600:hover,
+.hover\:bg-emerald-500:hover,
+.hover\:bg-emerald-600:hover,
+button.bg-emerald-700:hover {
   background-color: var(--primary-hover) !important;
+  color: #ffffff !important;
 }
 
-.active\:bg-purple-700:active {
+.active\:bg-purple-700:active,
+.active\:bg-emerald-700:active,
+.active\:bg-emerald-800:active,
+button.bg-emerald-700:active {
   background-color: var(--primary-active) !important;
+  color: #ffffff !important;
 }
 
-.text-purple-400,
-.text-purple-300,
-.text-purple-500 {
+/* Accent text and icons on dark cards/surfaces, but never overriding inside primary buttons */
+span.text-purple-400,
+span.text-purple-300,
+div.text-purple-400,
+p.text-purple-400,
+span.text-emerald-400,
+span.text-emerald-300,
+div.text-emerald-400,
+p.text-emerald-400,
+svg.text-emerald-400,
+svg.text-purple-400 {
   color: var(--primary) !important;
 }
 
+/* Page Smooth Fade-In Animation (replaces jarring slide) */
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-fade {
+  animation: pageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
 .hover\:text-purple-300:hover,
-.hover\:text-purple-400:hover {
+.hover\:text-purple-400:hover,
+.hover\:text-emerald-300:hover,
+.hover\:text-emerald-400:hover {
   color: var(--primary-hover) !important;
 }
 
@@ -275,42 +329,75 @@ html[dir="ltr"] body {
 .border-purple-600,
 .border-purple-500\/40,
 .border-purple-500\/50,
-.border-purple-500\/30 {
+.border-purple-500\/30,
+.border-emerald-500,
+.border-emerald-600,
+.border-emerald-500\/30,
+.border-emerald-500\/40,
+.border-emerald-500\/50,
+.border-emerald-600\/60 {
   border-color: var(--primary) !important;
 }
 
 .hover\:border-purple-500\/30:hover,
 .hover\:border-purple-500\/40:hover,
-.hover\:border-purple-500:hover {
+.hover\:border-purple-500:hover,
+.hover\:border-emerald-500\/30:hover,
+.hover\:border-emerald-500\/40:hover,
+.hover\:border-emerald-500\/50:hover,
+.hover\:border-emerald-500:hover {
   border-color: var(--primary) !important;
 }
 
 .focus\:border-purple-500:focus,
-.focus\:border-purple-400:focus {
+.focus\:border-purple-400:focus,
+.focus\:border-emerald-500:focus,
+.focus\:border-emerald-400:focus {
   border-color: var(--primary) !important;
+}
+
+.ring-emerald-500,
+.ring-emerald-400 {
+  --tw-ring-color: var(--primary) !important;
 }
 
 .bg-purple-500\/10,
 .bg-purple-600\/10,
 .bg-purple-600\/15,
 .bg-purple-600\/20,
-.bg-purple-950\/40 {
+.bg-purple-950\/40,
+.bg-emerald-500\/10,
+.bg-emerald-500\/15,
+.bg-emerald-600\/10,
+.bg-emerald-600\/15,
+.bg-emerald-600\/20,
+.bg-emerald-950\/20,
+.bg-emerald-950\/40 {
   background-color: var(--primary-glow) !important;
 }
 
 .shadow-purple-600\/30,
 .shadow-purple-600\/25,
-.shadow-purple-900\/20 {
+.shadow-purple-900\/20,
+.shadow-emerald-600\/30,
+.shadow-emerald-600\/25,
+.shadow-emerald-900\/20,
+.shadow-emerald-950\/40,
+.shadow-emerald-500\/50 {
   box-shadow: 0 4px 14px 0 var(--primary-glow) !important;
 }
 
 .stroke-purple-400,
-.stroke-purple-500 {
+.stroke-purple-500,
+.stroke-emerald-400,
+.stroke-emerald-500 {
   stroke: var(--primary) !important;
 }
 
 .fill-purple-400,
-.fill-purple-500 {
+.fill-purple-500,
+.fill-emerald-400,
+.fill-emerald-500 {
   fill: var(--primary) !important;
 }
 
@@ -347,5 +434,20 @@ html[dir="ltr"] body {
 button, a, [role="button"] {
   cursor: pointer;
 }
+
+/* Tactile Hand Grabbing Cursor */
+.cursor-grab {
+  cursor: grab !important;
+}
+
+.cursor-grabbing,
+.cursor-grab:active,
+body.is-dragging,
+body.is-dragging *,
+body.is-dragging [role="button"],
+body.is-dragging button {
+  cursor: grabbing !important;
+}
+
 
 

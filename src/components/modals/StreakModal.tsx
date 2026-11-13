@@ -22,14 +22,7 @@ export const StreakModal: React.FC<StreakModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Convert studiedDates (YYYY-MM-DD) to pseudo timestamps so calculateStreak aggregates them
-  const extraTimestamps = studiedDates.map((d) => {
-    const [y, m, day] = d.split('-').map(Number);
-    return new Date(y, m - 1, day, 12, 0, 0).getTime();
-  });
-
-  const allTimestamps = [...sessionTimestamps, ...extraTimestamps];
-  const streakInfo = calculateStreak(allTimestamps);
+  const streakInfo = calculateStreak(sessionTimestamps, studiedDates);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth(); // 0-indexed

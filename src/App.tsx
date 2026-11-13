@@ -27,6 +27,8 @@ import { SessionEndModal } from './components/modals/SessionEndModal.tsx';
 import { WelcomeTourModal } from './components/modals/WelcomeTourModal.tsx';
 import { InitialGoogleConnectModal } from './components/modals/InitialGoogleConnectModal.tsx';
 import { TermsModal } from './components/modals/TermsModal.tsx';
+import { CookieConsentModal } from './components/modals/CookieConsentModal.tsx';
+import { Footer } from './components/Footer.tsx';
 
 import { AppState, Category, Card, PomodoroSession } from './types/index.ts';
 import {
@@ -37,11 +39,12 @@ import {
 } from './utils/storage.ts';
 import {
   uploadBackupToDrive,
+  restoreBackupFromDrive,
   getStoredAccessToken,
   requestGoogleAccessToken,
   fetchGoogleUserProfile,
 } from './utils/googleDrive.ts';
-import { calculateStreak, calculateCardStats } from './utils/calculations.ts';
+import { calculateStreak, calculateCardStats, getQualifiedStreakDates } from './utils/calculations.ts';
 import { playChime } from './utils/audio.ts';
 import { t } from './utils/translations.ts';
 import { User, Award, Layers, Clock } from 'lucide-react';
@@ -75,6 +78,7 @@ export default function App() {
   const initialRoute = parseHashRoute();
   const [currentCatId, setCurrentCatId] = useState<string | null>(initialRoute.catId);
   const [currentTab, setCurrentTab] = useState<string>(initialRoute.tab);
+  const [returnActionAfterCategory, setReturnActionAfterCategory] = useState<'generate' | 'deck' | null>(null);
 
   const navigateTo = (tab: string, catId: string | null = null) => {
     setCurrentTab(tab);
@@ -121,6 +125,7 @@ export default function App() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isSessionEndModalOpen, setIsSessionEndModalOpen] = useState(false);
   const [completedSessionDuration, setCompletedSessionDuration] = useState(25);
+  const pendingCompletedSessionIdRef = useRef<string | null>(null);
 
   // Google Initial Onboarding Modal State
   const [isInitialGoogleOpen, setIsInitialGoogleOpen] = useState(() => {
@@ -139,6 +144,29 @@ export default function App() {
   const handleOpenTerms = (tab: 'terms' | 'privacy') => {
     setTermsModalTab(tab);
     setIsTermsModalOpen(true);
+  };
+
+  // Cookie Consent Modal State
+  const [isCookieModalOpen, setIsCookieModalOpen] = useState(() => {
+    try {
+      return localStorage.getItem('studyflow_cookie_consent') === null;
+    } catch {
+      return false;
+    }
+  });
+
+  const handleAcceptAllCookies = () => {
+    try {
+      localStorage.setItem('studyflow_cookie_consent', 'all');
+    } catch {}
+    setIsCookieModalOpen(false);
+  };
+
+  const handleAcceptNecessaryCookies = () => {
+    try {
+      localStorage.setItem('studyflow_cookie_consent', 'necessary');
+    } catch {}
+    setIsCookieModalOpen(false);
   };
 
   // Starting Welcome Tour State
@@ -217,6 +245,32 @@ export default function App() {
     }
   }, [state]);
 
+  // Periodic 5-minute auto-backup to Google Drive appDataFolder
+  useEffect(() => {
+    const FIVE_MINUTES_MS = 5 * 60 * 1000;
+    const interval = setInterval(async () => {
+      if (state.profile?.signedIn) {
+        const token = getStoredAccessToken();
+        if (token) {
+          try {
+            await uploadBackupToDrive(token, state);
+          } catch (e) {
+            console.warn('5-minute periodic auto-backup to Google Drive failed:', e);
+          }
+        }
+      }
+    }, FIVE_MINUTES_MS);
+    return () => clearInterval(interval);
+  }, [state.profile?.signedIn, state]);
+
+  // Handle Replaying Tutorial: navigate back to Home, expand sidebar, and start tour
+  const handleReplayTutorial = () => {
+    setCurrentCatId(null);
+    setCurrentTab('home');
+    setIsCollapsedDesktop(false);
+    setIsWelcomeTourOpen(true);
+  };
+
   // Sync theme, direction, and primary accent color
   useEffect(() => {
     const theme = state.settings.theme || 'dark';
@@ -227,59 +281,218 @@ export default function App() {
     document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', state.settings.lang);
 
-    const primary = state.settings.primaryColor || '#7c5cfc';
+    const primary = state.settings.primaryColor || '#10b981';
     document.documentElement.style.setProperty('--primary', primary);
-    const r = parseInt(primary.slice(1, 3), 16) || 124;
-    const g = parseInt(primary.slice(3, 5), 16) || 92;
-    const b = parseInt(primary.slice(5, 7), 16) || 252;
+    const r = parseInt(primary.slice(1, 3), 16) || 16;
+    const g = parseInt(primary.slice(3, 5), 16) || 185;
+    const b = parseInt(primary.slice(5, 7), 16) || 129;
     document.documentElement.style.setProperty(
       '--primary-glow',
       `rgba(${r}, ${g}, ${b}, 0.35)`
     );
   }, [state.settings.theme, state.settings.lang, state.settings.primaryColor]);
 
-  // Pomodoro Interval Loop
+  // Pomodoro Interval Loop (pure 1-second tick)
   useEffect(() => {
     let timer: NodeJS.Timeout | null = null;
     if (isPomoRunning) {
       timer = setInterval(() => {
-        setPomoTimeLeft((prev) => {
-          if (prev <= 1) {
-            playChime();
-            if (pomoMode === 'focus') {
-              // Focus ended -> trigger session summary modal & switch to break
-              setIsPomoRunning(false);
-              setCompletedSessionDuration(Math.round(pomoTotalDuration / 60));
-              setIsSessionEndModalOpen(true);
-              setPomoMode('break');
-              setPomoTotalDuration(5 * 60);
-              return 5 * 60;
-            } else {
-              // Break ended -> switch to focus
-              setPomoBreaksCount((b) => b + 1);
-              setPomoMode('focus');
-              setPomoTotalDuration(25 * 60);
-              return 25 * 60;
-            }
-          }
-          return prev - 1;
-        });
+        setPomoTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
       }, 1000);
     }
     return () => {
       if (timer) clearInterval(timer);
     };
-  }, [isPomoRunning, pomoMode, pomoTotalDuration]);
+  }, [isPomoRunning]);
+
+  // Exact 1:1 lifetime focus timer sync: adds +1 second for each elapsed focus second
+  const prevPomoTimeLeftRef = useRef(pomoTimeLeft);
+  useEffect(() => {
+    const prev = prevPomoTimeLeftRef.current;
+    prevPomoTimeLeftRef.current = pomoTimeLeft;
+    if (
+      isPomoRunning &&
+      pomoMode === 'focus' &&
+      prev > pomoTimeLeft &&
+      prev - pomoTimeLeft === 1
+    ) {
+      setState((s) => ({
+        ...s,
+        lifetimeFocusSeconds: (s.lifetimeFocusSeconds || 0) + 1,
+      }));
+    }
+  }, [pomoTimeLeft, isPomoRunning, pomoMode]);
+
+  // Pomodoro Session Completion Trigger (handles completion cleanly outside interval tick)
+  useEffect(() => {
+    if (isPomoRunning && pomoTimeLeft === 0) {
+      playChime();
+      setIsPomoRunning(false);
+      if (pomoMode === 'focus') {
+        const finishedMins = Math.max(1, Math.round(pomoTotalDuration / 60));
+        const sessionId = Math.random().toString(36).slice(2, 9);
+        pendingCompletedSessionIdRef.current = sessionId;
+
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        const autoSession: PomodoroSession = {
+          id: sessionId,
+          minutes: finishedMins,
+          ts: now.getTime(),
+        };
+
+        // Immediately commit completed focus session so Daily Goal & Today's Sessions never reset
+        setState((prev) => {
+          const cats = [...prev.categories];
+          const targetIdx = currentCatId
+            ? cats.findIndex((c) => c.id === currentCatId)
+            : 0;
+          if (cats.length > 0) {
+            const idx = targetIdx >= 0 ? targetIdx : 0;
+            cats[idx] = {
+              ...cats[idx],
+              sessions: [autoSession, ...(cats[idx].sessions || [])],
+            };
+          } else {
+            cats.push({
+              id: 'cat-general',
+              name: 'عام',
+              nameEn: 'General',
+              subject: 'General Study',
+              color: '#10b981',
+              decks: [],
+              sessions: [autoSession],
+              tasks: [],
+              exams: [],
+              grades: [],
+              quizzes: [],
+              notes: [],
+              log: [],
+            });
+          }
+          return {
+            ...prev,
+            categories: cats,
+          };
+        });
+
+        setCompletedSessionDuration(finishedMins);
+        setIsSessionEndModalOpen(true);
+        setPomoMode('break');
+        setPomoTotalDuration(5 * 60);
+        setPomoTimeLeft(5 * 60);
+      } else {
+        setPomoBreaksCount((b) => b + 1);
+        setPomoMode('focus');
+        const defaultFocus = (state.settings.pomoWorkMinutes || 25) * 60;
+        setPomoTotalDuration(defaultFocus);
+        setPomoTimeLeft(defaultFocus);
+      }
+    }
+  }, [pomoTimeLeft, isPomoRunning, pomoMode, pomoTotalDuration, state.settings.pomoWorkMinutes, currentCatId]);
+
+  // Save any elapsed focus session so Study Goals Progress and streak never reset
+  const saveElapsedFocusSession = () => {
+    if (pomoMode === 'focus' && pomoTotalDuration > pomoTimeLeft) {
+      const elapsedSeconds = pomoTotalDuration - pomoTimeLeft;
+      if (elapsedSeconds >= 1) {
+        const elapsedMinutes = Math.max(1, Math.round(elapsedSeconds / 60));
+        const now = new Date();
+        const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        setState((prev) => {
+          const cats = [...prev.categories];
+          const newSession: PomodoroSession = {
+            id: Math.random().toString(36).slice(2, 9),
+            minutes: elapsedMinutes,
+            ts: now.getTime(),
+          };
+          if (cats.length > 0) {
+            cats[0] = {
+              ...cats[0],
+              sessions: [...(cats[0].sessions || []), newSession],
+            };
+          } else {
+            cats.push({
+              id: 'cat-general',
+              name: 'عام',
+              nameEn: 'General',
+              subject: 'General Study',
+              color: '#10b981',
+              decks: [],
+              sessions: [newSession],
+              tasks: [],
+              exams: [],
+              grades: [],
+              quizzes: [],
+              notes: [],
+              log: [],
+            });
+          }
+          return {
+            ...prev,
+            categories: cats,
+          };
+        });
+      }
+    }
+  };
+
+  const activeFocusSecondsToday =
+    pomoMode === 'focus' && pomoTotalDuration > pomoTimeLeft
+      ? pomoTotalDuration - pomoTimeLeft
+      : 0;
+
+  // Real-time daily goal completion check -> sync studiedDates strictly when daily goal is cleared
+  useEffect(() => {
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const goalDaily = Math.max(1, state.settings.goalDaily || 60);
+    const allSessions = state.categories.flatMap((c) => c.sessions || []);
+    const completedTodayMinutes = allSessions
+      .filter((s) => {
+        const d = new Date(s.ts);
+        const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return k === todayKey;
+      })
+      .reduce((acc, s) => acc + (s.minutes || 0), 0);
+    const totalTodaySeconds = completedTodayMinutes * 60 + activeFocusSecondsToday;
+    const goalDailySeconds = goalDaily * 60;
+    const goalClearedToday = totalTodaySeconds >= goalDailySeconds;
+
+    setState((prev) => {
+      const dates = prev.studiedDates || [];
+      const hasToday = dates.includes(todayKey);
+      if (goalClearedToday && !hasToday) {
+        return {
+          ...prev,
+          studiedDates: [...dates, todayKey],
+        };
+      }
+      if (!goalClearedToday && hasToday) {
+        return {
+          ...prev,
+          studiedDates: dates.filter((d) => d !== todayKey),
+        };
+      }
+      return prev;
+    });
+  }, [
+    activeFocusSecondsToday,
+    state.settings.goalDaily,
+    state.categories,
+  ]);
 
   // Current category object
   const currentCategory = state.categories.find((c) => c.id === currentCatId) || null;
 
-  // Streak info including completed calendar tasks and sessions
+  // Streak info computed strictly from days that cleared the daily study goal
   const allSessions = state.categories.flatMap((c) => c.sessions || []);
-  const streakInfo = calculateStreak(
-    allSessions.map((s) => s.ts),
-    state.studiedDates
+  const qualifiedStreakDates = getQualifiedStreakDates(
+    allSessions,
+    state.settings.goalDaily || 60,
+    activeFocusSecondsToday
   );
+  const streakInfo = calculateStreak([], qualifiedStreakDates);
 
   // Category Actions
   const handleCreateCategory = (name: string, subject: string, color: string) => {
@@ -304,7 +517,17 @@ export default function App() {
       categories: [...prev.categories, newCat],
     }));
     setCurrentCatId(newCat.id);
-    setCurrentTab('overview');
+
+    // If the user came from a modal warning (e.g. Generate with AI or New Deck), reopen it
+    if (returnActionAfterCategory === 'generate') {
+      setIsGenerateCardsOpen(true);
+      setReturnActionAfterCategory(null);
+    } else if (returnActionAfterCategory === 'deck') {
+      setIsNewDeckOpen(true);
+      setReturnActionAfterCategory(null);
+    } else {
+      navigateTo('overview', newCat.id);
+    }
   };
 
   const handleUpdateCategory = (updated: Category) => {
@@ -354,8 +577,7 @@ export default function App() {
       ...targetCat,
       decks: [...(targetCat.decks || []), newDeck],
     });
-    setCurrentCatId(categoryId);
-    setCurrentTab('cards');
+    navigateTo('cards', categoryId);
   };
 
   const handleGeneratedCards = (
@@ -391,69 +613,99 @@ export default function App() {
     setCurrentTab('cards');
   };
 
-  // Session Logging
+  // Session Logging (updates auto-saved session with note, target category, or quiz)
   const handleSaveCompletedSession = (
     categoryId: string,
     note: string,
     shouldGenerateQuiz: boolean
   ) => {
-    const sessionItem: PomodoroSession = {
-      id: Math.random().toString(36).slice(2, 9),
-      minutes: completedSessionDuration,
-      ts: Date.now(),
-      note: note || undefined,
-    };
+    const pendingId = pendingCompletedSessionIdRef.current;
+    pendingCompletedSessionIdRef.current = null;
 
-    const todayStr = new Date().toISOString().slice(0, 10);
+    const now = new Date();
 
     setState((prev) => {
-      const dates = prev.studiedDates || [];
-      const updatedDates = dates.includes(todayStr) ? dates : [...dates, todayStr];
 
-      // If a category was chosen, save session to it
-      if (categoryId) {
-        return {
-          ...prev,
-          studiedDates: updatedDates,
-          categories: prev.categories.map((c) => {
-            if (c.id === categoryId) {
-              const updatedQuizzes = shouldGenerateQuiz
-                ? [
-                    {
-                      id: Math.random().toString(36).slice(2, 9),
-                      title: `Quiz: ${note ? note.slice(0, 30) : 'Session Recall'}`,
-                      questions: [
-                        {
-                          id: 'sq-1',
-                          question: `What was the key topic in your focus session: "${note}"?`,
-                          options: [
-                            note || 'Core Concept',
-                            'Unrelated Topic A',
-                            'Unrelated Topic B',
-                            'Unrelated Topic C',
-                          ],
-                          correctIndex: 0,
-                        },
-                      ],
-                      created: Date.now(),
-                    },
-                    ...(c.quizzes || []),
-                  ]
-                : c.quizzes || [];
+      let existingSession: PomodoroSession | null = null;
+      let cats = prev.categories.map((c) => {
+        if (pendingId && (c.sessions || []).some((s) => s.id === pendingId)) {
+          existingSession = (c.sessions || []).find((s) => s.id === pendingId) || null;
+          return {
+            ...c,
+            sessions: (c.sessions || []).filter((s) => s.id !== pendingId),
+          };
+        }
+        return c;
+      });
 
-              return {
-                ...c,
-                sessions: [sessionItem, ...(c.sessions || [])],
-                quizzes: updatedQuizzes,
-              };
-            }
-            return c;
-          }),
-        };
+      const sessionItem: PomodoroSession = existingSession
+        ? { ...(existingSession as PomodoroSession), note: note || undefined }
+        : {
+            id: pendingId || Math.random().toString(36).slice(2, 9),
+            minutes: completedSessionDuration,
+            ts: now.getTime(),
+            note: note || undefined,
+          };
+
+      if (cats.length === 0) {
+        cats = [
+          {
+            id: 'cat-general',
+            name: 'عام',
+            nameEn: 'General',
+            subject: 'General Study',
+            color: '#10b981',
+            decks: [],
+            sessions: [],
+            tasks: [],
+            exams: [],
+            grades: [],
+            quizzes: [],
+            notes: [],
+            log: [],
+          },
+        ];
       }
+
+      const targetId = categoryId || cats[0].id;
+      const updatedCats = cats.map((c) => {
+        if (c.id === targetId) {
+          const updatedQuizzes = shouldGenerateQuiz
+            ? [
+                {
+                  id: Math.random().toString(36).slice(2, 9),
+                  title: `Quiz: ${note ? note.slice(0, 30) : 'Session Recall'}`,
+                  questions: [
+                    {
+                      id: 'sq-1',
+                      question: `What was the key topic in your focus session: "${note}"?`,
+                      options: [
+                        note || 'Core Concept',
+                        'Unrelated Topic A',
+                        'Unrelated Topic B',
+                        'Unrelated Topic C',
+                      ],
+                      correctIndex: 0,
+                    },
+                  ],
+                  created: Date.now(),
+                },
+                ...(c.quizzes || []),
+              ]
+            : c.quizzes || [];
+
+          return {
+            ...c,
+            sessions: [sessionItem, ...(c.sessions || [])],
+            quizzes: updatedQuizzes,
+          };
+        }
+        return c;
+      });
+
       return {
         ...prev,
-        studiedDates: updatedDates,
+        categories: updatedCats,
       };
     });
 
@@ -462,26 +714,42 @@ export default function App() {
 
   // Settings, Profile & Reset
   const handleUpdateSettings = (partial: Partial<AppState['settings']>) => {
-    setState((prev) => {
-      const nextSettings = { ...prev.settings, ...partial };
-      const nextState = { ...prev, settings: nextSettings };
-      saveAppState(nextState);
-      return nextState;
-    });
+    setState((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, ...partial },
+    }));
   };
 
   const handleUpdateProfile = (partial: Partial<AppState['profile']>) => {
-    setState((prev) => {
-      const nextProfile = { ...prev.profile, ...partial };
-      const nextState = { ...prev, profile: nextProfile };
-      saveAppState(nextState);
-      return nextState;
-    });
+    setState((prev) => ({
+      ...prev,
+      profile: { ...prev.profile, ...partial },
+    }));
   };
 
   const handleRestoreState = (restored: AppState) => {
     saveAppState(restored);
     setState(restored);
+  };
+
+  const handleConnectGoogleUnified = async () => {
+    try {
+      const token = await requestGoogleAccessToken();
+      const profile = await fetchGoogleUserProfile(token);
+      handleUpdateProfile({ ...profile, signedIn: true });
+
+      // Automatically restore cloud backup from Google Drive upon login
+      try {
+        const restored = await restoreBackupFromDrive(token);
+        if (restored && restored.categories) {
+          handleRestoreState(restored);
+        }
+      } catch (restoreErr) {
+        console.log('No prior backup found or restore skipped:', restoreErr);
+      }
+    } catch (e) {
+      console.warn('Google connect error:', e);
+    }
   };
 
   const handleResetAll = () => {
@@ -512,7 +780,7 @@ export default function App() {
   const sidebarOffsetClass = isCollapsedDesktop ? 'lg:ms-0' : 'lg:ms-72';
 
   return (
-    <div className="min-h-screen bg-[#0a0a1a] text-[#e8e8f0] flex flex-col antialiased">
+    <div className="min-h-screen bg-[#0a0a1a] text-[#e8e8f0] flex flex-col antialiased animate-page-fade">
       {/* Sidebar Navigation */}
       <Sidebar
         categories={state.categories}
@@ -622,7 +890,7 @@ export default function App() {
                 onRestoreState={handleRestoreState}
                 onImportState={handleImportFile}
                 onResetAll={handleResetAll}
-                onStartTutorial={() => setIsWelcomeTourOpen(true)}
+                onStartTutorial={handleReplayTutorial}
                 onOpenTerms={handleOpenTerms}
               />
             ) : currentTab === 'timeline' ? (
@@ -637,26 +905,8 @@ export default function App() {
                     calendarEvents: updatedEvents,
                   }));
                 }}
-                onEventCompleted={(event) => {
-                  const todayStr = new Date().toISOString().slice(0, 10);
-                  setState((prev) => {
-                    const dates = prev.studiedDates || [];
-                    const updatedDates = dates.includes(todayStr) ? dates : [...dates, todayStr];
-                    return {
-                      ...prev,
-                      studiedDates: updatedDates,
-                    };
-                  });
-                }}
-                onConnectGoogle={async () => {
-                  try {
-                    const token = await requestGoogleAccessToken();
-                    const profile = await fetchGoogleUserProfile(token);
-                    handleUpdateProfile({ ...profile, signedIn: true });
-                  } catch (e) {
-                    console.warn('Google connect error:', e);
-                  }
-                }}
+                onEventCompleted={() => {}}
+                onConnectGoogle={handleConnectGoogleUnified}
               />
             ) : currentTab === 'profile' ? (
               <ProfileView
@@ -667,15 +917,7 @@ export default function App() {
                   setCurrentCatId(null);
                   setCurrentTab('settings');
                 }}
-                onConnectGoogle={async () => {
-                  try {
-                    const token = await requestGoogleAccessToken();
-                    const profile = await fetchGoogleUserProfile(token);
-                    handleUpdateProfile({ ...profile, signedIn: true });
-                  } catch (e) {
-                    console.warn('Google connect error:', e);
-                  }
-                }}
+                onConnectGoogle={handleConnectGoogleUnified}
                 onSelectCategory={(id) => {
                   setCurrentCatId(id);
                   setCurrentTab('overview');
@@ -701,6 +943,7 @@ export default function App() {
                 lang={state.settings.lang}
                 onTogglePomo={() => setIsPomoRunning((prev) => !prev)}
                 onResetPomo={() => {
+                  saveElapsedFocusSession();
                   setIsPomoRunning(false);
                   const resetMins = state.settings.pomoWorkMinutes || 25;
                   setPomoTimeLeft(resetMins * 60);
@@ -747,6 +990,8 @@ export default function App() {
                   handleUpdateSettings({ dashboard: updatedDashboard });
                 }}
                 onUpdatePomoDuration={(mins) => {
+                  saveElapsedFocusSession();
+                  setIsPomoRunning(false);
                   setPomoTotalDuration(mins * 60);
                   setPomoTimeLeft(mins * 60);
                   handleUpdateSettings({ pomoWorkMinutes: mins });
@@ -926,6 +1171,13 @@ export default function App() {
               )}
             </div>
           )}
+
+          {/* Persistent StudyFlow Footer with dynamic year, terms, and cookie settings */}
+          <Footer
+            lang={state.settings.lang}
+            onOpenTerms={handleOpenTerms}
+            onOpenCookies={() => setIsCookieModalOpen(true)}
+          />
         </main>
       </div>
 
@@ -941,12 +1193,15 @@ export default function App() {
         lang={state.settings.lang}
         onTogglePlay={() => setIsPomoRunning((prev) => !prev)}
         onReset={() => {
+          saveElapsedFocusSession();
           setIsPomoRunning(false);
-          setPomoTimeLeft(25 * 60);
-          setPomoTotalDuration(25 * 60);
+          const resetMins = state.settings.pomoWorkMinutes || 25;
+          setPomoTimeLeft(resetMins * 60);
+          setPomoTotalDuration(resetMins * 60);
           setPomoMode('focus');
         }}
         onSkip={() => {
+          saveElapsedFocusSession();
           setIsPomoRunning(false);
           if (pomoMode === 'focus') {
             setPomoMode('break');
@@ -954,8 +1209,9 @@ export default function App() {
             setPomoTotalDuration(5 * 60);
           } else {
             setPomoMode('focus');
-            setPomoTimeLeft(25 * 60);
-            setPomoTotalDuration(25 * 60);
+            const focusMins = state.settings.pomoWorkMinutes || 25;
+            setPomoTimeLeft(focusMins * 60);
+            setPomoTotalDuration(focusMins * 60);
           }
         }}
         onToggleHideTime={() => setPomoHideTime((prev) => !prev)}
@@ -989,7 +1245,10 @@ export default function App() {
           setCurrentCatId(null);
           setCurrentTab('settings');
         }}
-        onOpenNewCategory={() => setIsNewCategoryOpen(true)}
+        onOpenNewCategory={() => {
+          setReturnActionAfterCategory('generate');
+          setIsNewCategoryOpen(true);
+        }}
         onGenerated={handleGeneratedCards}
       />
 
@@ -1006,8 +1265,8 @@ export default function App() {
 
       <StreakModal
         isOpen={isStreakModalOpen}
-        sessionTimestamps={allSessions.map((s) => s.ts)}
-        studiedDates={state.studiedDates || []}
+        sessionTimestamps={[]}
+        studiedDates={qualifiedStreakDates}
         lang={state.settings.lang}
         onClose={() => setIsStreakModalOpen(false)}
       />
@@ -1030,9 +1289,7 @@ export default function App() {
         lang={state.settings.lang}
         onConnectGoogle={async () => {
           try {
-            const token = await requestGoogleAccessToken();
-            const profile = await fetchGoogleUserProfile(token);
-            handleUpdateProfile({ ...profile, signedIn: true });
+            await handleConnectGoogleUnified();
           } catch (e) {
             console.warn('Initial Google Connect error:', e);
           } finally {
@@ -1065,6 +1322,16 @@ export default function App() {
         onClose={() => setIsTermsModalOpen(false)}
       />
 
+      {/* GDPR / Privacy Cookie Consent Settings Modal */}
+      <CookieConsentModal
+        isOpen={isCookieModalOpen}
+        lang={state.settings.lang}
+        onAcceptAll={handleAcceptAllCookies}
+        onAcceptNecessary={handleAcceptNecessaryCookies}
+        onOpenPrivacy={() => handleOpenTerms('privacy')}
+        onClose={() => setIsCookieModalOpen(false)}
+      />
+
       <CustomizeDashboardModal
         isOpen={isCustomizeOpen}
         dashboardWidgets={state.settings.dashboard}
@@ -1088,7 +1355,10 @@ export default function App() {
         durationMinutes={completedSessionDuration}
         lang={state.settings.lang}
         onSaveSession={handleSaveCompletedSession}
-        onDismiss={() => setIsSessionEndModalOpen(false)}
+        onDismiss={() => {
+          pendingCompletedSessionIdRef.current = null;
+          setIsSessionEndModalOpen(false);
+        }}
       />
     </div>
   );

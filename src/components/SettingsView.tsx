@@ -37,6 +37,7 @@ import {
   uploadBackupToDrive,
   restoreBackupFromDrive,
   revokeGoogleAccess,
+  deleteGoogleAccountDataAndRevoke,
   getStoredAccessToken,
   setStoredAccessToken,
 } from '../utils/googleDrive.ts';
@@ -105,6 +106,22 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     type: 'success' | 'error' | 'info';
     text: string;
   } | null>(null);
+
+  // Account Deletion Challenge State
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const handleConfirmDeleteAccount = async () => {
+    const token = getStoredAccessToken();
+    await deleteGoogleAccountDataAndRevoke(token);
+    onUpdateProfile({
+      name: 'Student',
+      email: '',
+      avatar: '',
+      signedIn: false,
+      googleId: undefined,
+    });
+    onResetAll();
+  };
 
   // Offline Mode State
   const [isOfflineCached, setIsOfflineCached] = useState(() => {
@@ -522,7 +539,25 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             {t('themeDesc', lang)}
           </span>
 
-          <div className="grid grid-cols-3 gap-2 p-1 bg-[#121318] rounded-xl border border-[#20222a] max-w-md">
+          <div className="grid grid-cols-4 gap-2 p-1 bg-[#121318] rounded-xl border border-[#20222a] max-w-lg">
+            {/* Auto (System / Chrome Detection) */}
+            <button
+              type="button"
+              onClick={() => {
+                const sys = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+                onUpdateSettings({ theme: sys });
+              }}
+              style={{
+                backgroundColor: 'transparent',
+                color: '#8c909e',
+              }}
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all hover:text-white"
+              title={lang === 'ar' ? 'مطابقة مظهر النظام والمتصفح' : 'Auto match System & Chrome profile'}
+            >
+              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+              <span>{lang === 'ar' ? 'تلقائي' : 'Auto/OS'}</span>
+            </button>
+
             {/* Dark */}
             <button
               type="button"
@@ -531,7 +566,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 backgroundColor: theme === 'dark' ? primaryColor : 'transparent',
                 color: theme === 'dark' ? '#ffffff' : '#8c909e',
               }}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all"
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all"
             >
               <Moon className="w-3.5 h-3.5" />
               <span>{t('dark', lang)}</span>
@@ -545,7 +580,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 backgroundColor: theme === 'light' ? primaryColor : 'transparent',
                 color: theme === 'light' ? '#ffffff' : '#8c909e',
               }}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all"
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all"
             >
               <Sun className="w-3.5 h-3.5" />
               <span>{t('light', lang)}</span>
@@ -559,7 +594,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 backgroundColor: theme === 'black' ? primaryColor : 'transparent',
                 color: theme === 'black' ? '#ffffff' : '#8c909e',
               }}
-              className="flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold transition-all"
+              className="flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-bold transition-all"
             >
               <Circle className="w-3.5 h-3.5 fill-current" />
               <span>{t('black', lang)}</span>
@@ -881,13 +916,56 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             </div>
           )}
 
+          {/* AI Quota Tier Selector */}
+          <div className="p-3 rounded-xl bg-[#121318] border border-[#20222a] space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-[#f3f4f6]">
+                {lang === 'ar' ? 'باقة استخدام المفتاح (الحصة اليومية):' : 'API Key Quota Tier:'}
+              </span>
+              <span className="text-[10px] text-teal-400 font-mono font-bold">
+                {state.settings.aiTier === 'paid'
+                  ? lang === 'ar'
+                    ? 'حصة غير محدودة (مدفوع)'
+                    : 'Unlimited / High Quota'
+                  : '20 calls / day (Free Tier)'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ aiTier: 'free' })}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-center ${
+                  state.settings.aiTier !== 'paid'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'bg-[#0b0c10] border border-[#20222a] text-[#8c909e] hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'المجانية (20 يومياً)' : 'Free Tier (20/day)'}
+              </button>
+              <button
+                type="button"
+                onClick={() => onUpdateSettings({ aiTier: 'paid' })}
+                className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all text-center ${
+                  state.settings.aiTier === 'paid'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'bg-[#0b0c10] border border-[#20222a] text-[#8c909e] hover:text-white'
+                }`}
+              >
+                {lang === 'ar' ? 'باقة مدفوعة (بدون حد)' : 'Paid / High Quota'}
+              </button>
+            </div>
+          </div>
+
           {/* Real AI Daily Usage Info */}
           <div className="p-3 rounded-xl bg-[#121318] border border-[#20222a] flex items-center justify-between text-xs">
             <span className="text-[#8c909e]">
               {lang === 'ar' ? 'الاستخدام اليومي المسجل:' : 'Recorded AI calls today:'}
             </span>
             <span className="font-mono font-bold text-[#f3f4f6]">
-              {state.settings.aiUsageToday || 0} / 20 {lang === 'ar' ? 'استدعاء' : 'calls'}
+              {state.settings.aiTier === 'paid'
+                ? `${state.settings.aiUsageToday || 0} calls (Paid Tier - High Quota)`
+                : `${state.settings.aiUsageToday || 0} / 20 ${lang === 'ar' ? 'استدعاء' : 'calls'}`}
             </span>
           </div>
         </div>
@@ -942,6 +1020,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>{t('signOut', lang)}</span>
+            </button>
+          )}
+
+          {isGoogleConnected && (
+            <button
+              type="button"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-rose-600/15 border border-rose-500/30 text-rose-400 hover:bg-rose-600/25 text-xs font-bold transition-all flex items-center gap-1.5"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>{lang === 'ar' ? 'حذف الحساب وإلغاء الربط' : 'Delete Account'}</span>
             </button>
           )}
 
@@ -1008,8 +1097,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="number"
               step="10"
               min="10"
-              value={dailyGoal}
-              onChange={(e) => setDailyGoal(Number(e.target.value))}
+              placeholder="60"
+              value={dailyGoal === 0 ? '' : dailyGoal}
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                setDailyGoal(raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0));
+              }}
               className="w-full px-3 py-2 rounded-xl bg-[#121318] border border-[#20222a] text-xs font-mono font-bold text-[#f3f4f6] focus:outline-none"
             />
           </div>
@@ -1021,8 +1115,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="number"
               step="30"
               min="30"
-              value={weeklyGoal}
-              onChange={(e) => setWeeklyGoal(Number(e.target.value))}
+              placeholder="420"
+              value={weeklyGoal === 0 ? '' : weeklyGoal}
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => {
+                const raw = e.target.value.replace(/^0+(?=\d)/, '');
+                setWeeklyGoal(raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0));
+              }}
               className="w-full px-3 py-2 rounded-xl bg-[#121318] border border-[#20222a] text-xs font-mono font-bold text-[#f3f4f6] focus:outline-none"
             />
           </div>
@@ -1152,7 +1251,16 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </label>
         </div>
 
-        <div className="pt-2">
+        <div className="pt-2 space-y-2">
+          <button
+            type="button"
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="w-full py-3 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold transition-all flex items-center justify-center gap-2 shadow-lg shadow-rose-950/40 active:scale-95"
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>{lang === 'ar' ? 'حذف الحساب نهائياً وفصل التطبيقات المرتبطة' : 'Delete Account & Revoke Connected App'}</span>
+          </button>
+
           <button
             type="button"
             onClick={() => {
@@ -1160,12 +1268,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onResetAll();
               }
             }}
-            className="w-full py-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-all flex items-center justify-center gap-2"
+            className="w-full py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 hover:bg-rose-500/20 text-xs font-bold transition-all flex items-center justify-center gap-2"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-3.5 h-3.5" />
             <span>{t('resetAll', lang)}</span>
           </button>
-          <span className="text-[10px] text-[#8c909e] block text-center mt-2">
+          <span className="text-[10px] text-[#8c909e] block text-center mt-1">
             {t('deleteDataWarning', lang)}
           </span>
         </div>
@@ -1219,6 +1327,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </button>
         </div>
       </div>
+
+      <DeleteAccountChallengeModal
+        isOpen={isDeleteModalOpen}
+        lang={lang}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirmDelete={handleConfirmDeleteAccount}
+      />
     </div>
   );
 };

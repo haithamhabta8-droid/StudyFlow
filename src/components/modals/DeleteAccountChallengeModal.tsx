@@ -25,19 +25,26 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
 }) => {
   const [step, setStep] = useState(1);
   const [posIdx, setPosIdx] = useState(0);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isFinalSuccess, setIsFinalSuccess] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleNextStep = () => {
+  const handleNextStep = async () => {
     if (step < 5) {
       setStep((prev) => prev + 1);
-      // Pick a different position each time
       setPosIdx((prev) => (prev + 1) % POSITIONS.length);
     } else {
-      // Step 5 completed! Perform account deletion & show final Google Connected Apps link
-      onConfirmDelete();
-      setIsFinalSuccess(true);
+      // Step 5 completed! Perform permanent account deletion & revocation
+      setIsDeleting(true);
+      try {
+        await Promise.resolve(onConfirmDelete());
+      } catch (err) {
+        console.error('Error during account deletion:', err);
+      } finally {
+        setIsDeleting(false);
+        setIsFinalSuccess(true);
+      }
     }
   };
 
@@ -45,7 +52,7 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
     window.open('https://myaccount.google.com/connections', '_blank', 'noopener,noreferrer');
   };
 
-  // If deletion is finalized, display the Google Connected Apps dialog
+  // If deletion is finalized, display the confirmation dialog
   if (isFinalSuccess) {
     return (
       <div
@@ -53,19 +60,21 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
         aria-modal="true"
         className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in"
       >
-        <div className="bg-[#12122a] border border-emerald-500/40 rounded-3xl p-7 max-w-md w-full shadow-2xl text-center space-y-5">
+        <div className="bg-[#12122a] border border-emerald-500/40 rounded-3xl p-7 max-w-md w-full shadow-2xl text-center space-y-5 animate-in zoom-in-95">
           <div className="w-14 h-14 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 mx-auto flex items-center justify-center text-emerald-400">
             <CheckCircle2 className="w-8 h-8" />
           </div>
 
           <div>
             <h3 className="text-lg font-extrabold text-[#e8e8f0]">
-              {lang === 'ar' ? 'تم حذف الحساب والبيانات محلياً' : 'Account & Local Data Deleted'}
+              {lang === 'ar'
+                ? 'تم حذف الحساب وإلغاء الربط بنجاح'
+                : 'Account Deleted & App Disconnected'}
             </h3>
             <p className="text-xs text-[#8888a8] mt-2 leading-relaxed">
               {lang === 'ar'
-                ? 'تم مسح جميع بياناتك وجلساتك وفصل الجلسة. لإلغاء إذن StudyFlow تماماً من حساب Google الخاص بك، انقر على الزر أدناه لإدارة التطبيقات المرتبطة.'
-                : 'All local study data and Google tokens have been erased. To completely revoke StudyFlow access from your Google Account, click the button below to open your Connected Apps.'}
+                ? 'تم مسح نسختك الاحتياطية من Google Drive نهائياً، وتم إلغاء تصريح الدخول من حساب Google تلقائياً وإزالة StudyFlow من قائمة التطبيقات المرتبطة. يمكنك فتح الرابط أدناه للتأكد من حسابك في أي وقت.'
+                : 'Your Google Drive backup has been permanently deleted, and Google OAuth authorization has been automatically revoked from your Google Account. StudyFlow has been removed from your Connected Apps.'}
             </p>
           </div>
 
@@ -73,11 +82,11 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
             <button
               type="button"
               onClick={handleOpenGoogleConnectedApps}
-              className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-purple-600/30 transition-all"
+              className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/40 transition-all active:scale-95"
             >
               <ExternalLink className="w-4 h-4" />
               <span>
-                {lang === 'ar' ? 'فتح قائمة التطبيقات المرتبطة بـ Google' : 'Manage Google Connected Apps'}
+                {lang === 'ar' ? 'عرض التطبيقات المرتبطة بـ Google' : 'Check Google Connected Apps'}
               </span>
             </button>
 
@@ -90,7 +99,7 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
               }}
               className="w-full py-2.5 px-4 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
             >
-              {lang === 'ar' ? 'إغلاق' : 'Close'}
+              {lang === 'ar' ? 'تم / إغلاق' : 'Done / Close'}
             </button>
           </div>
         </div>
@@ -165,16 +174,17 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
 
           <button
             type="button"
+            disabled={isDeleting}
             onClick={handleNextStep}
-            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs shadow-md shadow-rose-900/40 transition-all hover:scale-105 active:scale-95"
+            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white font-extrabold text-xs shadow-md shadow-rose-900/40 transition-all hover:scale-105 active:scale-95 flex items-center gap-1.5"
           >
-            {step < 5
-              ? lang === 'ar'
-                ? `نعم، أنا متأكد (${step}/5)`
-                : `Yes, I am sure (${step}/5)`
-              : lang === 'ar'
-              ? 'تأكيد الحذف النهائي'
-              : 'Confirm Final Deletion'}
+            {isDeleting ? (
+              <span>{lang === 'ar' ? 'جارٍ الحذف وإلغاء الربط...' : 'Revoking & Deleting...'}</span>
+            ) : step < 5 ? (
+              <span>{lang === 'ar' ? `نعم، أنا متأكد (${step}/5)` : `Yes, I am sure (${step}/5)`}</span>
+            ) : (
+              <span>{lang === 'ar' ? 'تأكيد الحذف النهائي' : 'Confirm Final Deletion'}</span>
+            )}
           </button>
         </div>
       </div>

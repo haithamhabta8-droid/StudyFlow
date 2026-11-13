@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, ShieldCheck, FileText, ExternalLink } from 'lucide-react';
 
 interface TermsModalProps {
@@ -16,26 +16,41 @@ export const TermsModal: React.FC<TermsModalProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'terms' | 'privacy'>(initialTab);
 
+  useEffect(() => {
+    setActiveTab(initialTab);
+  }, [initialTab, isOpen]);
+
   if (!isOpen) return null;
 
   const isAr = lang === 'ar';
+  const now = new Date();
+  const formattedMonthYear = new Intl.DateTimeFormat(isAr ? 'ar-SA' : 'en-US', {
+    month: 'long',
+    year: 'numeric',
+  }).format(now);
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[160] flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200"
     >
       <div className="bg-[#12122a] border border-[#2a2a4a] rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-[#2a2a4a] flex items-center justify-between bg-[#161632]">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
-              {activeTab === 'terms' ? (
-                <FileText className="w-5 h-5" />
-              ) : (
-                <ShieldCheck className="w-5 h-5" />
-              )}
+            <div className="w-10 h-10 rounded-xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-center text-purple-400 shadow-sm">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="w-5 h-5 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]"
+              >
+                <path d="M2 12l4-8h12l4 8-10 8z" />
+              </svg>
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-extrabold text-[#e8e8f0]">
@@ -48,18 +63,30 @@ export const TermsModal: React.FC<TermsModalProps> = ({
                   : 'Privacy Policy'}
               </h2>
               <span className="text-[11px] text-[#8888a8]">
-                {isAr ? 'آخر تحديث: نوفمبر 2026' : 'Last updated: November 2026'} · StudyFlow
+                {isAr ? `آخر تحديث: ${formattedMonthYear}` : `Last updated: ${formattedMonthYear}`} · StudyFlow
               </span>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-[#8888a8] hover:text-white hover:bg-[#2a2a4a] transition-colors"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-2">
+            <a
+              href={activeTab === 'terms' ? './terms.html' : './privacy.html'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#e8e8f0] hover:text-white transition-colors"
+              title={isAr ? 'فتح في صفحة منفصلة' : 'Open in standalone page'}
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>{isAr ? 'فتح في صفحة منفصلة' : 'Open in standalone page'}</span>
+            </a>
+            <button
+              onClick={onClose}
+              aria-label="Close"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-[#8888a8] hover:text-white hover:bg-[#2a2a4a] transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* Tab switchers */}
@@ -86,23 +113,13 @@ export const TermsModal: React.FC<TermsModalProps> = ({
             <ShieldCheck className="w-3.5 h-3.5" />
             <span>{isAr ? 'سياسة الخصوصية' : 'Privacy Policy'}</span>
           </button>
-
-          <a
-            href={activeTab === 'terms' ? './terms.html' : './privacy.html'}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="ms-auto pb-3 text-[11px] font-semibold text-[#8888a8] hover:text-purple-300 flex items-center gap-1 transition-colors"
-          >
-            <span>{isAr ? 'فتح في صفحة منفصلة' : 'Open in new tab'}</span>
-            <ExternalLink className="w-3 h-3" />
-          </a>
         </div>
 
         {/* Scrollable Content */}
         <div className="p-6 overflow-y-auto space-y-5 text-xs text-[#b8b8d0] leading-relaxed">
           {activeTab === 'terms' ? (
             <>
-              <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20 text-purple-200">
+              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-200">
                 <strong>{isAr ? 'ملخص شروط الخدمة:' : 'Terms Summary:'}</strong>{' '}
                 {isAr
                   ? 'StudyFlow هي أداة دراسية شخصية مخصصة لمساعدتك على تنظيم المذاكرة والبطاقات التعليمية والمؤقتات. استخدامك للتطبيق يعني موافقتك على استخدام الميزات بأمان ومسؤولية.'

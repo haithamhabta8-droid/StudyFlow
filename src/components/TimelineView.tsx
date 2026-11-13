@@ -49,6 +49,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
   const [syncError, setSyncError] = useState<string | null>(null);
   const [syncSuccessMsg, setSyncSuccessMsg] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState(() => Date.now());
+  const [showConnectPrompt, setShowConnectPrompt] = useState(false);
 
   // Modal for adding manual schedule items
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -234,43 +235,40 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           <div className="flex items-center gap-2">
             <CalendarIcon className="w-5 h-5 text-purple-400" />
             <h1 className="text-xl font-extrabold text-[#e8e8f0]">
-              {lang === 'ar' ? 'الجدول الزمني والتقويم' : 'Study Timeline & Calendar'}
+              {lang === 'ar' ? 'الجدول الدراسي والتقويم' : 'Study Timetable & Calendar'}
             </h1>
           </div>
           <p className="text-xs text-[#8888a8] mt-1">
             {lang === 'ar'
-              ? 'مزامنة كاملة مع تقويم Google وحفظ جدول الشهر محلياً للعمل بدون إنترنت مع تأكيد الإنجاز.'
-              : 'Full Google Calendar integration with offline monthly schedule caching and time-gated completions.'}
+              ? 'مزامنة أوقاتك وجدولك الدراسي مع تقويم Google أو إدارتها محلياً بدون إنترنت.'
+              : 'Connect your Google account to see your current calendar times here, or manage your schedule locally.'}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {isGoogleConnected ? (
-            <button
-              onClick={handleSyncMonth}
-              disabled={isSyncing}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-purple-600/25 transition-all"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
-              <span>
-                {isSyncing
-                  ? lang === 'ar'
-                    ? 'جارٍ المزامنة...'
-                    : 'Syncing Calendar...'
-                  : lang === 'ar'
-                  ? 'مزامنة تقويم Google'
-                  : 'Sync Google Calendar'}
-              </span>
-            </button>
-          ) : (
-            <button
-              onClick={onConnectGoogle}
-              className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-purple-500/40 text-xs font-bold text-[#e8e8f0] transition-colors"
-            >
-              <CalendarIcon className="w-3.5 h-3.5 text-purple-400" />
-              <span>{lang === 'ar' ? 'ربط تقويم Google' : 'Connect Google Calendar'}</span>
-            </button>
-          )}
+          {/* Universal Sync Schedule Button */}
+          <button
+            onClick={() => {
+              if (isGoogleConnected) {
+                handleSyncMonth();
+              } else {
+                setShowConnectPrompt(true);
+              }
+            }}
+            disabled={isSyncing}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white font-bold text-xs shadow-md shadow-purple-600/25 transition-all active:scale-95"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+            <span>
+              {isSyncing
+                ? lang === 'ar'
+                  ? 'جارٍ المزامنة...'
+                  : 'Syncing Schedule...'
+                : lang === 'ar'
+                ? 'مزامنة الجدول'
+                : 'Sync Schedule'}
+            </span>
+          </button>
 
           <button
             onClick={() => setIsAddModalOpen(true)}
@@ -281,6 +279,44 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Gentle Non-Forcing Google Calendar Connect Prompt Banner */}
+      {!isGoogleConnected && showConnectPrompt && (
+        <div className="p-4 rounded-2xl bg-purple-950/30 border-2 border-purple-500/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-in fade-in duration-200">
+          <div className="space-y-0.5">
+            <h4 className="text-xs font-extrabold text-white flex items-center gap-2">
+              <CalendarIcon className="w-4 h-4 text-purple-400" />
+              <span>
+                {lang === 'ar'
+                  ? 'اربط حساب Google لعرض مواعيد تقويمك الحالية هنا'
+                  : 'Connect your Google account to see your current calendar times here'}
+              </span>
+            </h4>
+            <p className="text-[11px] text-purple-200/80">
+              {lang === 'ar'
+                ? 'يمكنك أيضاً الاستمرار محلياً وإضافة مواعيدك يدوياً وحفظها باستخدام ملفات JSON بدون أي حساب.'
+                : 'You can also continue working locally, adding tasks manually and exporting to JSON without any account.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={onConnectGoogle}
+              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs shadow-md transition-all active:scale-95"
+            >
+              {lang === 'ar' ? 'تسجيل الدخول بـ Google' : 'Sign in with Google'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowConnectPrompt(false)}
+              className="px-3 py-2 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
+            >
+              {lang === 'ar' ? 'المتابعة محلياً' : 'Dismiss / Stay Local'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Sync Status Messages */}
       {syncSuccessMsg && (

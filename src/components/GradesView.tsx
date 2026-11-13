@@ -225,9 +225,10 @@ export const GradesView: React.FC<GradesViewProps> = ({
                   <input
                     type="number"
                     step="0.5"
+                    placeholder="85"
                     value={score}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setScore(e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setScore(e.target.value.replace(/^0+(?=\d)/, ''))}
                     className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono font-bold"
                   />
                 </div>
@@ -237,9 +238,10 @@ export const GradesView: React.FC<GradesViewProps> = ({
                   </label>
                   <input
                     type="number"
+                    placeholder="100"
                     value={maxScore}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setMaxScore(e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setMaxScore(e.target.value.replace(/^0+(?=\d)/, ''))}
                     className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono font-bold"
                   />
                 </div>
@@ -249,9 +251,10 @@ export const GradesView: React.FC<GradesViewProps> = ({
                   </label>
                   <input
                     type="number"
+                    placeholder="20"
                     value={weight}
-                    onFocus={(e) => e.target.select()}
-                    onChange={(e) => setWeight(e.target.value)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onChange={(e) => setWeight(e.target.value.replace(/^0+(?=\d)/, ''))}
                     className="w-full px-3 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] text-xs text-[#e8e8f0] focus:outline-none focus:border-purple-500 font-mono font-bold"
                   />
                 </div>

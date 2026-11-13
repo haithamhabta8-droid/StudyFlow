@@ -4,6 +4,7 @@ import {
   formatTimer,
   calculateWeightedGPA,
   calculateStreak,
+  getQualifiedStreakDates,
   calculateCardStats,
   getNextCardStatus,
   daysUntil,
@@ -49,6 +50,47 @@ test('calculateStreak counts consecutive days', () => {
   const streakWithKeys = calculateStreak([], [todayDateStr]);
   assert.equal(streakWithKeys.currentStreak, 1);
   assert.equal(streakWithKeys.activeToday, true);
+});
+
+test('getQualifiedStreakDates grants streak only when daily goal is cleared', () => {
+  const now = Date.now();
+  const dayMs = 86400000;
+
+  // 1 minute or 59 minutes when daily goal is 60 must NOT qualify
+  const partialDates = getQualifiedStreakDates([{ ts: now, minutes: 1 }], 60);
+  assert.deepEqual(partialDates, []);
+  const partialStreak = calculateStreak([], partialDates);
+  assert.equal(partialStreak.currentStreak, 0);
+  assert.equal(partialStreak.activeToday, false);
+
+  // Multiple sessions on the same day summing to >= 60 minutes DO qualify
+  const combinedDates = getQualifiedStreakDates(
+    [
+      { ts: now, minutes: 25 },
+      { ts: now, minutes: 35 },
+    ],
+    60
+  );
+  assert.equal(combinedDates.length, 1);
+  const combinedStreak = calculateStreak([], combinedDates);
+  assert.equal(combinedStreak.currentStreak, 1);
+  assert.equal(combinedStreak.activeToday, true);
+
+  // Live active focus seconds crossing the remaining goal threshold qualify immediately
+  const liveDates = getQualifiedStreakDates([{ ts: now, minutes: 59 }], 60, 60);
+  assert.equal(liveDates.length, 1);
+
+  // Yesterday cleared (60m) + today incomplete (10m) preserves yesterday streak without activating today
+  const yesterdayClearedDates = getQualifiedStreakDates(
+    [
+      { ts: now - dayMs, minutes: 60 },
+      { ts: now, minutes: 10 },
+    ],
+    60
+  );
+  const preservedStreak = calculateStreak([], yesterdayClearedDates);
+  assert.equal(preservedStreak.currentStreak, 1);
+  assert.equal(preservedStreak.activeToday, false);
 });
 
 test('calculateCardStats aggregates total, mastered, and masteryPct', () => {

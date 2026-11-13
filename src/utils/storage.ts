@@ -4,17 +4,17 @@ export const STORE_KEY = 'studyFlow_v14';
 
 export const DEFAULT_WIDGETS: WidgetConfig[] = [
   { id: 'pomodoro', size: 'half', visible: true },
-  { id: 'stats', size: 'half', visible: true },
-  { id: 'aiUsage', size: 'third', visible: true },
-  { id: 'goals', size: 'third', visible: true },
-  { id: 'streak', size: 'third', visible: true },
-  { id: 'activity', size: 'two-thirds', visible: true },
-  { id: 'sessionsToday', size: 'third', visible: true },
-  { id: 'exams', size: 'half', visible: true },
+  { id: 'sessions', size: 'half', visible: true },
+  { id: 'goals', size: 'half', visible: true },
   { id: 'tasks', size: 'half', visible: true },
+  { id: 'stats', size: 'half', visible: true },
+  { id: 'aiUsage', size: 'half', visible: true },
+  { id: 'actions', size: 'half', visible: true },
+  { id: 'streak', size: 'half', visible: true },
   { id: 'grades', size: 'half', visible: true },
-  { id: 'quizAvg', size: 'half', visible: true },
-  { id: 'actions', size: 'full', visible: true },
+  { id: 'exams', size: 'half', visible: true },
+  { id: 'weeklyActivity', size: 'half', visible: true },
+  { id: 'quizzes', size: 'half', visible: true },
 ];
 
 export const PRIMARY_COLORS = [
@@ -38,6 +38,17 @@ export const PRIMARY_COLORS = [
   '#64748b', // Slate Gray
 ];
 
+export function getSystemPreferredTheme(): 'light' | 'dark' | 'black' {
+  try {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      if (window.matchMedia('(prefers-color-scheme: light)').matches) {
+        return 'light';
+      }
+    }
+  } catch {}
+  return 'dark';
+}
+
 export function getDefaultState(): AppState {
   return {
     categories: [],
@@ -58,7 +69,7 @@ export function getDefaultState(): AppState {
       goalDaily: 60,
       goalWeekly: 420,
       lang: 'en',
-      theme: 'black',
+      theme: getSystemPreferredTheme(),
       primaryColor: '#22c55e',
       dashboard: JSON.parse(JSON.stringify(DEFAULT_WIDGETS)),
       showCompletedTasks: false,
@@ -86,8 +97,10 @@ export function getDefaultState(): AppState {
         },
       ],
       activeModelId: 'm-1',
+      uniformWidgetsMigrated: true,
     },
     breakHistory: [],
+    lifetimeFocusSeconds: 0,
   };
 }
 
@@ -148,9 +161,16 @@ export function loadAppState(): AppState {
       const loadedSettings = {
         ...def.settings,
         ...(parsed.settings || {}),
-        dashboard: Array.isArray(parsed.settings?.dashboard)
+        dashboard: (Array.isArray(parsed.settings?.dashboard)
           ? parsed.settings.dashboard
-          : def.settings.dashboard,
+          : def.settings.dashboard
+        ).map((w: any) => {
+          let id = w.id;
+          if (id === 'activity') id = 'weeklyActivity';
+          if (id === 'sessionsToday') id = 'sessions';
+          if (id === 'quizAvg') id = 'quizzes';
+          return { ...w, id };
+        }),
       };
 
       // Always upgrade deprecated model strings to gemini-3.8-flash
@@ -166,20 +186,48 @@ export function loadAppState(): AppState {
         loadedSettings.provider = 'gemini';
       }
 
+      // Migrate old purple default to emerald green
+      if (!loadedSettings.primaryColor || loadedSettings.primaryColor === '#7c5cfc') {
+        loadedSettings.primaryColor = '#10b981';
+      }
+
+      // One-time migration to ensure all widgets start with uniform half width
+      if (!loadedSettings.uniformWidgetsMigrated) {
+        loadedSettings.dashboard = loadedSettings.dashboard.map((w: any) => ({
+          ...w,
+          size: 'half',
+        }));
+        loadedSettings.uniformWidgetsMigrated = true;
+      }
+
       // Automatically reset daily AI usage if day has passed
       if (loadedSettings.aiUsageDate !== todayKey) {
         loadedSettings.aiUsageToday = 0;
         loadedSettings.aiUsageDate = todayKey;
       }
 
+      const loadedCategories = Array.isArray(parsed.categories) ? parsed.categories : [];
+      const legacySessionSeconds = loadedCategories.reduce(
+        (sum: number, c: any) =>
+          sum +
+          (Array.isArray(c.sessions)
+            ? c.sessions.reduce((sAcc: number, s: any) => sAcc + (s.minutes || 0) * 60, 0)
+            : 0),
+        0
+      );
+
       return {
-        categories: Array.isArray(parsed.categories) ? parsed.categories : [],
+        categories: loadedCategories,
         pinned: Array.isArray(parsed.pinned) ? parsed.pinned : [],
         profile: { ...def.profile, ...(parsed.profile || {}) },
         settings: loadedSettings,
         breakHistory: Array.isArray(parsed.breakHistory) ? parsed.breakHistory : [],
         calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
         studiedDates: Array.isArray(parsed.studiedDates) ? parsed.studiedDates : [],
+        lifetimeFocusSeconds:
+          typeof parsed.lifetimeFocusSeconds === 'number'
+            ? parsed.lifetimeFocusSeconds
+            : legacySessionSeconds,
       };
     }
   } catch (e) {

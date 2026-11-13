@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { X, Eye, EyeOff, RotateCcw, ChevronUp, ChevronDown, Check } from 'lucide-react';
 import { WidgetConfig, WidgetSize } from '../../types/index.ts';
 import { DEFAULT_WIDGETS } from '../../utils/storage.ts';
 import { t } from '../../utils/translations.ts';
@@ -35,65 +35,121 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
     onUpdateWidgets(updated);
   };
 
+  const handleMove = (index: number, direction: -1 | 1) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= dashboardWidgets.length) return;
+    const next = [...dashboardWidgets];
+    const temp = next[index];
+    next[index] = next[targetIdx];
+    next[targetIdx] = temp;
+    onUpdateWidgets(next);
+  };
+
   const handleReset = () => {
     onUpdateWidgets(JSON.parse(JSON.stringify(DEFAULT_WIDGETS)));
   };
 
   const widgetNameMap: Record<string, string> = {
-    pomodoro: t('widgetPomodoro', lang),
-    stats: t('widgetStats', lang),
-    aiUsage: t('widgetAiUsage', lang),
-    goals: t('widgetGoals', lang),
-    activity: t('widgetActivity', lang),
-    streak: t('widgetStreak', lang),
-    sessionsToday: t('widgetSessionsToday', lang),
-    exams: t('widgetExams', lang),
-    tasks: t('widgetTasks', lang),
-    grades: t('widgetGrades', lang),
-    quizAvg: t('widgetQuizAvg', lang),
-    actions: t('widgetActions', lang),
+    pomodoro: lang === 'ar' ? 'مؤقت بومودورو' : 'Pomodoro Timer',
+    stats: lang === 'ar' ? 'إحصائيات سريعة' : 'Quick Stats',
+    aiUsage: lang === 'ar' ? 'استخدام الذكاء الاصطناعي' : 'AI Daily Usage',
+    goals: lang === 'ar' ? 'تقدم الأهداف اليومية والأسبوعية' : 'Daily & Weekly Goals',
+    streak: lang === 'ar' ? 'تقويم سلسلة الأيام' : 'Streak Calendar',
+    activity: lang === 'ar' ? 'نشاط الأسبوع' : 'Weekly Activity',
+    sessionsToday: lang === 'ar' ? 'جلسات اليوم' : "Today's Sessions",
+    exams: lang === 'ar' ? 'الاختبارات القادمة' : 'Upcoming Exams',
+    tasks: lang === 'ar' ? 'مهام اليوم' : "Today's Tasks",
+    grades: lang === 'ar' ? 'ملخص الدرجات' : 'Grades Summary',
+    quizAvg: lang === 'ar' ? 'متوسط الكويزات' : 'Quiz Accuracy',
+    actions: lang === 'ar' ? 'إجراءات سريعة' : 'Quick Actions',
+  };
+
+  const sizeLabels: Record<WidgetSize, string> = {
+    quarter: lang === 'ar' ? 'ربع العرض' : 'Quarter (1/4)',
+    third: lang === 'ar' ? 'ثلث العرض' : 'Third (1/3)',
+    half: lang === 'ar' ? 'نصف العرض' : 'Half (1/2)',
+    'two-thirds': lang === 'ar' ? 'ثلثي العرض' : 'Two-Thirds (2/3)',
+    full: lang === 'ar' ? 'كامل العرض' : 'Full Width',
   };
 
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200"
     >
-      <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+      <div className="bg-[#12122a] border border-[#2a2a4a] rounded-3xl p-6 max-w-lg w-full shadow-2xl space-y-4">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="font-extrabold text-base text-[#e8e8f0]">
-            {t('customizeDashboard', lang)}
+          <h3 className="font-extrabold text-lg text-[#e8e8f0]">
+            {lang === 'ar' ? 'تخصيص اللوحة' : 'Customize Dashboard'}
           </h3>
-          <button onClick={onClose} className="text-[#8888a8] hover:text-white">
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-[#8888a8] hover:text-white transition-colors"
+          >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <p className="text-xs text-[#8888a8]">
-          {t('customizeHint', lang)}
+        <p className="text-xs text-[#8888a8] leading-relaxed">
+          {lang === 'ar'
+            ? 'حدد الويدجت التي ترغب في إظهارها على لوحة التحكم وغيّر أحجامها.'
+            : 'Select which widgets appear on your dashboard and customize their grid sizes.'}
         </p>
 
         {/* Widgets List */}
-        <div className="max-h-80 overflow-y-auto space-y-2.5 pr-1">
-          {dashboardWidgets.map((w) => (
+        <div className="max-h-96 overflow-y-auto space-y-2.5 pe-1">
+          {dashboardWidgets.map((w, idx) => (
             <div
               key={w.id}
-              className="flex items-center justify-between p-3 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a]/40 gap-3"
+              className={`flex items-center justify-between p-3 rounded-2xl border transition-all gap-3 ${
+                w.visible
+                  ? 'bg-[#1c1c3a] border-[#2a2a4a]'
+                  : 'bg-[#12122a] border-[#2a2a4a]/40 opacity-60'
+              }`}
             >
-              <div className="flex items-center gap-2.5 min-w-0">
-                <button
-                  onClick={() => handleToggleVisible(w.id)}
-                  className={`p-1.5 rounded-lg border transition-colors ${
-                    w.visible
-                      ? 'bg-purple-600/20 border-purple-500/40 text-purple-300'
-                      : 'bg-[#12122a] border-[#2a2a4a] text-[#5a5a78]'
-                  }`}
+              {/* Left / Start: Size Selector & Reorder buttons */}
+              <div className="flex items-center gap-1.5 shrink-0">
+                <select
+                  value={w.size}
+                  disabled={!w.visible}
+                  onChange={(e) => handleChangeSize(w.id, e.target.value as WidgetSize)}
+                  className="px-3 py-1.5 rounded-xl bg-[#12122a] border border-[#2a2a4a] text-xs font-bold text-[#e8e8f0] focus:outline-none focus:border-emerald-500 disabled:opacity-40 transition-colors"
                 >
-                  {w.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </button>
+                  <option value="quarter">{sizeLabels['quarter']}</option>
+                  <option value="third">{sizeLabels['third']}</option>
+                  <option value="half">{sizeLabels['half']}</option>
+                  <option value="two-thirds">{sizeLabels['two-thirds']}</option>
+                  <option value="full">{sizeLabels['full']}</option>
+                </select>
+
+                <div className="flex items-center gap-0.5">
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => handleMove(idx, -1)}
+                    title={lang === 'ar' ? 'تحريك للأعلى' : 'Move up'}
+                    className="p-1 rounded text-[#8888a8] hover:text-white disabled:opacity-20 transition-colors"
+                  >
+                    <ChevronUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === dashboardWidgets.length - 1}
+                    onClick={() => handleMove(idx, 1)}
+                    title={lang === 'ar' ? 'تحريك للأسفل' : 'Move down'}
+                    className="p-1 rounded text-[#8888a8] hover:text-white disabled:opacity-20 transition-colors"
+                  >
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Center / Title */}
+              <div className="flex-1 min-w-0 text-center">
                 <span
-                  className={`text-xs font-bold truncate ${
+                  className={`text-xs font-bold truncate block ${
                     w.visible ? 'text-[#e8e8f0]' : 'text-[#5a5a78] line-through'
                   }`}
                 >
@@ -101,37 +157,40 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
                 </span>
               </div>
 
-              {/* Sizing dropdown */}
-              <select
-                value={w.size}
-                disabled={!w.visible}
-                onChange={(e) => handleChangeSize(w.id, e.target.value as WidgetSize)}
-                className="px-2.5 py-1 rounded-lg bg-[#12122a] border border-[#2a2a4a] text-xs font-semibold text-[#8888a8] focus:outline-none disabled:opacity-40"
+              {/* Right / End: Visibility Toggle Eye Button */}
+              <button
+                type="button"
+                onClick={() => handleToggleVisible(w.id)}
+                className={`p-2 rounded-xl border transition-all shrink-0 ${
+                  w.visible
+                    ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/25'
+                    : 'bg-[#12122a] border-[#2a2a4a] text-[#5a5a78] hover:text-[#8888a8]'
+                }`}
+                title={w.visible ? (lang === 'ar' ? 'إخفاء' : 'Hide') : (lang === 'ar' ? 'إظهار' : 'Show')}
               >
-                <option value="quarter">{t('sizeQuarter', lang)}</option>
-                <option value="third">{t('sizeThird', lang)}</option>
-                <option value="half">{t('sizeHalf', lang)}</option>
-                <option value="two-thirds">{t('sizeTwoThirds', lang)}</option>
-                <option value="full">{t('sizeFull', lang)}</option>
-              </select>
+                {w.visible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+              </button>
             </div>
           ))}
         </div>
 
+        {/* Footer */}
         <div className="flex items-center justify-between pt-3 border-t border-[#2a2a4a]">
           <button
+            type="button"
             onClick={handleReset}
-            className="flex items-center gap-1.5 text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0]"
+            className="flex items-center gap-1.5 text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
           >
-            <RotateCcw className="w-3.5 h-3.5" />
-            <span>{t('reset', lang)}</span>
+            <RotateCcw className="w-4 h-4" />
+            <span>{lang === 'ar' ? 'إعادة تعيين' : 'Reset Defaults'}</span>
           </button>
 
           <button
+            type="button"
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md shadow-purple-600/30"
+            className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-md shadow-emerald-900/30 transition-all active:scale-95"
           >
-            {t('done', lang)}
+            {lang === 'ar' ? 'تم' : 'Done'}
           </button>
         </div>
       </div>

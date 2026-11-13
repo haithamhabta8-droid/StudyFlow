@@ -8,19 +8,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12l4-8h12l4 8-10 8z'/%3E%3C/svg%3E" />
     <style>
       :root {
-        --primary: #7c3aed;
-        --bg: #0b0c10;
-        --surface: #12131a;
-        --border: #1f212d;
+        --primary: #059669;
+        --primary-glow: rgba(5, 150, 105, 0.2);
+        --bg: #0c0d16;
+        --surface: #141522;
+        --surface-2: #1b1c2e;
+        --border: #23253c;
         --text: #f3f4f6;
         --text-muted: #9ca3af;
+        --emerald: #10b981;
       }
       body {
         margin: 0;
         padding: 0;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
         background-color: var(--bg);
         color: var(--text);
         line-height: 1.7;
@@ -34,30 +38,51 @@
         border-bottom: 1px solid var(--border);
         padding-bottom: 24px;
         margin-bottom: 32px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
       }
-      h1 {
-        font-size: 2rem;
+      .logo-box {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--emerald);
+        flex-shrink: 0;
+      }
+      .header-info h1 {
+        font-size: 1.85rem;
         font-weight: 800;
         color: #ffffff;
-        margin: 0 0 8px;
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+      }
+      .header-info .meta {
+        font-size: 0.85rem;
+        color: #9ca3af;
+        margin: 0;
       }
       .badge {
         display: inline-block;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 999px;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-weight: 700;
-        background: rgba(124, 58, 237, 0.15);
-        color: #a78bfa;
-        border: 1px solid rgba(124, 58, 237, 0.3);
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
       }
       h2 {
-        font-size: 1.3rem;
+        font-size: 1.25rem;
         font-weight: 700;
         color: #ffffff;
         margin-top: 36px;
         margin-bottom: 12px;
-        border-left: 4px solid var(--primary);
+        border-left: 4px solid var(--emerald);
         padding-left: 12px;
       }
       p, li {
@@ -75,8 +100,17 @@
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 16px;
-        padding: 24px;
-        margin: 24px 0;
+        padding: 22px;
+        margin: 20px 0;
+      }
+      .callout {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: 16px;
+        padding: 18px 22px;
+        color: #a7f3d0;
+        margin: 22px 0;
+        font-size: 0.93rem;
       }
       .arabic-section {
         direction: rtl;
@@ -85,9 +119,12 @@
         padding-top: 40px;
         border-top: 2px dashed var(--border);
       }
+      .arabic-section header {
+        flex-direction: row;
+      }
       .arabic-section h2 {
         border-left: none;
-        border-right: 4px solid var(--primary);
+        border-right: 4px solid var(--emerald);
         padding-left: 0;
         padding-right: 12px;
       }
@@ -96,8 +133,9 @@
         padding-right: 20px;
       }
       a {
-        color: #a78bfa;
+        color: #34d399;
         text-decoration: none;
+        font-weight: 600;
       }
       a:hover {
         text-decoration: underline;
@@ -115,29 +153,40 @@
   <body>
     <div class="container">
       <header>
-        <span class="badge">StudyFlow App</span>
-        <h1>Terms of Service</h1>
-        <p style="margin: 4px 0 0; font-size: 0.85rem; color: #9ca3af;">Last updated: November 4, 2026</p>
+        <div class="logo-box">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+        </div>
+        <div class="header-info">
+          <h1>Terms of Service</h1>
+          <p class="meta" id="last-updated-date">Last updated: November 2026 · StudyFlow</p>
+        </div>
       </header>
 
-      <div class="card">
-        <strong>Acceptance of Terms:</strong> By accessing and using StudyFlow ("the application"), you agree to be bound by these Terms of Service. If you do not agree to all terms, please discontinue using the service.
+      <div class="callout">
+        <strong>Terms Summary:</strong> StudyFlow is a personal study companion engineered to help you manage spaced-repetition flashcards, pomodoro sessions, and study schedules responsibly.
       </div>
 
-      <h2>1. Description of Service</h2>
+      <h2>1. Description of Service & Fair Use</h2>
       <p>StudyFlow is an educational study suite providing spaced-repetition flashcards, Pomodoro focus timers, mind mapping, quizzes, and personal habit tracking. The app offers optional cloud backup via Google Drive and AI-assisted study tools using Google Gemini.</p>
 
-      <h2>2. User Responsibilities & Conduct</h2>
+      <h2>2. Google API & Cloud Services</h2>
+      <ul>
+        <li>Use of Google Drive backup features is subject to Google's Terms of Service and Privacy Policy.</li>
+        <li>StudyFlow requests access to the private <code>appDataFolder</code> exclusively to save your study state and does not claim any ownership over your personal data.</li>
+        <li>We comply strictly with the Google API Services User Data Policy including the Limited Use requirements.</li>
+      </ul>
+
+      <h2>3. User Responsibility & BYOK API Keys</h2>
       <ul>
         <li>You are responsible for maintaining the confidentiality of any API keys or credentials you input into the application.</li>
         <li>You agree not to use the application to generate, store, or distribute illegal, defamatory, or harmful content.</li>
-        <li>You are solely responsible for ensuring regular backups of your study data using the provided export or Google Drive backup features.</li>
-      </ul>
-
-      <h2>3. Google Services Integration</h2>
-      <ul>
-        <li>Use of Google Drive backup features is subject to Google's Terms of Service and Privacy Policy.</li>
-        <li>StudyFlow requests access to the <code>appDataFolder</code> exclusively to save your study state and does not claim any ownership over your personal data.</li>
+        <li>Your flashcards and keys remain stored locally in your browser, and you can export a full backup at any time.</li>
       </ul>
 
       <h2>4. Intellectual Property</h2>
@@ -146,7 +195,7 @@
       <h2>5. Disclaimer of Warranties & Limitation of Liability</h2>
       <p>StudyFlow is provided on an "AS IS" and "AS AVAILABLE" basis without warranties of any kind. In no event shall the developer be liable for any indirect, incidental, or consequential damages resulting from data loss, server interruptions, or academic performance.</p>
 
-      <h2>6. Contact</h2>
+      <h2>6. Contact & Support</h2>
       <p>For questions regarding these Terms, contact:</p>
       <div class="card">
         Email: <a href="mailto:haithamhabta8@gmail.com">haithamhabta8@gmail.com</a><br />
@@ -155,34 +204,66 @@
 
       <!-- Arabic Translation Section -->
       <div class="arabic-section">
-        <span class="badge">تطبيق StudyFlow</span>
-        <h1>شروط الخدمة</h1>
-        <p style="margin: 4px 0 0; font-size: 0.85rem; color: #9ca3af;">آخر تحديث: 4 نوفمبر 2026</p>
+        <header>
+          <div class="logo-box">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <div class="header-info">
+            <h1>شروط الخدمة</h1>
+            <p class="meta" id="last-updated-date-ar">آخر تحديث: نوفمبر 2026 · StudyFlow</p>
+          </div>
+        </header>
 
-        <div class="card">
-          <strong>قبول الشروط:</strong> باستخدامك لتطبيق StudyFlow، فإنك توافق على الالتزام بشروط الخدمة هذه. إذا كنت لا توافق على هذه الشروط، يُرجى التوقف عن استخدام التطبيق.
+        <div class="callout">
+          <strong>ملخص شروط الخدمة:</strong> StudyFlow هي أداة دراسية شخصية مخصصة لمساعدتك على تنظيم المذاكرة والبطاقات التعليمية والمؤقتات. استخدامك للتطبيق يعني موافقتك على استخدام الميزات بأمان ومسؤولية.
         </div>
 
         <h2>1. وصف الخدمة</h2>
         <p>StudyFlow هو تطبيق دراسي يساعد الطلاب والمتعلمين على استذكار ومراجعة المواد عبر نظام التكرار المتباعد، مؤقت بومودورو للتركيز، وإدارة الأهداف، مع دعم الحفظ الاحتياطي عبر Google Drive والتوليد الذكي عبر Google Gemini.</p>
 
-        <h2>2. مسؤوليات المستخدم</h2>
+        <h2>2. خدمات Google الخارجية</h2>
+        <ul>
+          <li>يخضع استخدام النسخ الاحتياطي عبر Google Drive لشروط وسياسات Google الرسمية.</li>
+          <li>يطلب StudyFlow الوصول الحصري لمجلد التطبيق المعزول <code>appDataFolder</code> فقط، ولا يطالب بأي ملكية على بياناتك الشخصية.</li>
+        </ul>
+
+        <h2>3. مسؤوليات المستخدم</h2>
         <ul>
           <li>أنت المسؤول عن حماية مفاتيح API الخاصة بك المدخلة في المتصفح.</li>
           <li>المحتوى الدراسي والبطاقات التعليمية التي تنشئها هي ملكك بالكامل.</li>
-          <li>يُنصح دائماً بتصدير نسخة احتياطية من بياناتك دورياً عبر خيار "Export JSON" أو Google Drive.</li>
+          <li>يُنصح دائماً بتصدير نسخة احتياطية من بياناتك دورياً عبر خيار التصدير أو Google Drive.</li>
         </ul>
 
-        <h2>3. إخلاء المسؤولية</h2>
-        <p>يتم توفير التطبيق "كما هو" لأغراض تعليمية، ولا نتحمل أي مسؤولية عن أي فقدان غير مقصود للبيانات ناتج عن مسح بيانات المتصفح المحلي.</p>
-
-        <h2>4. للتواصل</h2>
+        <h2>4. للتواصل والدعم</h2>
         <p>لأي استفسار بخصوص شروط الخدمة: <a href="mailto:haithamhabta8@gmail.com">haithamhabta8@gmail.com</a>.</p>
       </div>
 
       <footer>
-        &copy; 2026 StudyFlow. All rights reserved.
+        &copy; <span id="current-year">2026</span> StudyFlow. All rights reserved.
       </footer>
     </div>
+
+    <script>
+      (function() {
+        const now = new Date();
+        const enFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' });
+        const arFormatter = new Intl.DateTimeFormat('ar-SA', { month: 'long', year: 'numeric' });
+        
+        const enEl = document.getElementById('last-updated-date');
+        if (enEl) enEl.textContent = 'Last updated: ' + enFormatter.format(now) + ' · StudyFlow';
+        
+        const arEl = document.getElementById('last-updated-date-ar');
+        if (arEl) arEl.textContent = 'آخر تحديث: ' + arFormatter.format(now) + ' · StudyFlow';
+
+        const yrEl = document.getElementById('current-year');
+        if (yrEl) yrEl.textContent = now.getFullYear();
+      })();
+    </script>
   </body>
 </html>

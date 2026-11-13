@@ -1,6 +1,7 @@
 import React from 'react';
 import { Cloud, Calendar, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { GoogleLogo } from '../GoogleLogo.tsx';
+import { StudyFlowLogo } from '../StudyFlowLogo.tsx';
 
 interface InitialGoogleConnectModalProps {
   isOpen: boolean;
@@ -26,9 +27,13 @@ export const InitialGoogleConnectModal: React.FC<InitialGoogleConnectModalProps>
       className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
     >
       <div className="bg-[#12122a] border border-[#2a2a4a] rounded-3xl p-7 max-w-md w-full shadow-2xl space-y-6 text-center">
-        {/* Google G Logo Brand Header */}
-        <div className="mx-auto w-16 h-16 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shadow-lg shadow-purple-950/40">
-          <GoogleLogo className="w-8 h-8" />
+        {/* Logos Header: StudyFlow + Google Integration */}
+        <div className="flex items-center justify-center gap-3">
+          <StudyFlowLogo size="lg" />
+          <span className="text-[#8888a8] font-bold text-lg">+</span>
+          <div className="w-12 h-12 rounded-2xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shadow-lg shadow-purple-950/40">
+            <GoogleLogo className="w-6 h-6" />
+          </div>
         </div>
 
         <div>

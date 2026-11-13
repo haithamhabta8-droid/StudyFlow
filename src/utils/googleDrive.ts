@@ -150,17 +150,75 @@ export async function fetchGoogleUserProfile(token: string): Promise<Partial<Use
  */
 export async function revokeGoogleAccess(token?: string | null): Promise<void> {
   const currentToken = token || getStoredAccessToken();
-  if (currentToken && window.google?.accounts?.oauth2?.revoke) {
-    await new Promise<void>((resolve) => {
-      try {
-        window.google!.accounts.oauth2.revoke(currentToken, () => {
+  if (currentToken) {
+    try {
+      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(currentToken)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      });
+    } catch {}
+
+    if (window.google?.accounts?.oauth2?.revoke) {
+      await new Promise<void>((resolve) => {
+        try {
+          window.google!.accounts.oauth2.revoke(currentToken, () => {
+            resolve();
+          });
+        } catch {
           resolve();
-        });
-      } catch {
-        resolve();
-      }
-    });
+        }
+      });
+    }
   }
+  setStoredAccessToken(null);
+}
+
+/**
+ * Permanently delete backup from Google Drive and revoke token completely
+ * so StudyFlow is immediately removed from Google Account Connected Apps (myaccount.google.com/connections)
+ */
+export async function deleteGoogleAccountDataAndRevoke(token?: string | null): Promise<void> {
+  const currentToken = token || getStoredAccessToken();
+  if (currentToken) {
+    // 1. Delete backup file from Google Drive appDataFolder
+    try {
+      const existing = await findBackupFile(currentToken);
+      if (existing) {
+        await fetch(`https://www.googleapis.com/drive/v3/files/${existing.id}`, {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${currentToken}`,
+          },
+        });
+      }
+    } catch (e) {
+      console.warn('Error deleting drive backup file during account deletion:', e);
+    }
+
+    // 2. Call Google OAuth2 token revocation endpoint directly
+    try {
+      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(currentToken)}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+    } catch (e) {
+      console.warn('OAuth token revoke error:', e);
+    }
+
+    // 3. Also call Google Identity Services client revocation
+    if (window.google?.accounts?.oauth2?.revoke) {
+      await new Promise<void>((resolve) => {
+        try {
+          window.google!.accounts.oauth2.revoke(currentToken, () => resolve());
+        } catch {
+          resolve();
+        }
+      });
+    }
+  }
+
   setStoredAccessToken(null);
 }
 

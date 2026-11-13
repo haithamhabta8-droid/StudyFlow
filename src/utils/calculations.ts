@@ -51,6 +51,53 @@ export function calculateWeightedGPA(grades: Grade[]): {
 }
 
 /**
+ * Format a Date or timestamp to local YYYY-MM-DD key
+ */
+export function formatLocalDateKey(date: Date | number): string {
+  const d = typeof date === 'number' ? new Date(date) : date;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Return sorted YYYY-MM-DD local date keys for days that cleared dailyGoalMinutes
+ */
+export function getQualifiedStreakDates(
+  sessions: { ts: number; minutes: number }[],
+  dailyGoalMinutes: number,
+  activeFocusSecondsToday = 0
+): string[] {
+  const goalMinutes = Math.max(1, dailyGoalMinutes || 60);
+  const goalSeconds = goalMinutes * 60;
+  const secondsByDate = new Map<string, number>();
+
+  for (const s of sessions || []) {
+    if (!s || !s.ts) continue;
+    const key = formatLocalDateKey(s.ts);
+    secondsByDate.set(
+      key,
+      (secondsByDate.get(key) || 0) + Math.max(0, s.minutes || 0) * 60
+    );
+  }
+
+  if (activeFocusSecondsToday > 0) {
+    const todayKey = formatLocalDateKey(new Date());
+    secondsByDate.set(
+      todayKey,
+      (secondsByDate.get(todayKey) || 0) + activeFocusSecondsToday
+    );
+  }
+
+  const qualified: string[] = [];
+  for (const [dateKey, totalSecs] of secondsByDate.entries()) {
+    if (totalSecs >= goalSeconds) {
+      qualified.push(dateKey);
+    }
+  }
+
+  return qualified.sort();
+}
+
+/**
  * Calculate study streak from timestamps
  */
 export function calculateStreak(

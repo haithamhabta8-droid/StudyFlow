@@ -8,19 +8,23 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 12l4-8h12l4 8-10 8z'/%3E%3C/svg%3E" />
     <style>
       :root {
-        --primary: #7c3aed;
-        --bg: #0b0c10;
-        --surface: #12131a;
-        --border: #1f212d;
+        --primary: #059669;
+        --primary-glow: rgba(5, 150, 105, 0.2);
+        --bg: #0c0d16;
+        --surface: #141522;
+        --surface-2: #1b1c2e;
+        --border: #23253c;
         --text: #f3f4f6;
         --text-muted: #9ca3af;
+        --emerald: #10b981;
       }
       body {
         margin: 0;
         padding: 0;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
         background-color: var(--bg);
         color: var(--text);
         line-height: 1.7;
@@ -34,30 +38,51 @@
         border-bottom: 1px solid var(--border);
         padding-bottom: 24px;
         margin-bottom: 32px;
+        display: flex;
+        align-items: center;
+        gap: 16px;
       }
-      h1 {
-        font-size: 2rem;
+      .logo-box {
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--emerald);
+        flex-shrink: 0;
+      }
+      .header-info h1 {
+        font-size: 1.85rem;
         font-weight: 800;
         color: #ffffff;
-        margin: 0 0 8px;
+        margin: 0 0 4px;
+        letter-spacing: -0.02em;
+      }
+      .header-info .meta {
+        font-size: 0.85rem;
+        color: #9ca3af;
+        margin: 0;
       }
       .badge {
         display: inline-block;
-        padding: 4px 12px;
+        padding: 3px 10px;
         border-radius: 999px;
-        font-size: 0.75rem;
+        font-size: 0.72rem;
         font-weight: 700;
-        background: rgba(124, 58, 237, 0.15);
-        color: #a78bfa;
-        border: 1px solid rgba(124, 58, 237, 0.3);
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
       }
       h2 {
-        font-size: 1.3rem;
+        font-size: 1.25rem;
         font-weight: 700;
         color: #ffffff;
         margin-top: 36px;
         margin-bottom: 12px;
-        border-left: 4px solid var(--primary);
+        border-left: 4px solid var(--emerald);
         padding-left: 12px;
       }
       p, li {
@@ -75,8 +100,17 @@
         background: var(--surface);
         border: 1px solid var(--border);
         border-radius: 16px;
-        padding: 24px;
-        margin: 24px 0;
+        padding: 22px;
+        margin: 20px 0;
+      }
+      .callout {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: 16px;
+        padding: 18px 22px;
+        color: #a7f3d0;
+        margin: 22px 0;
+        font-size: 0.93rem;
       }
       .arabic-section {
         direction: rtl;
@@ -85,9 +119,12 @@
         padding-top: 40px;
         border-top: 2px dashed var(--border);
       }
+      .arabic-section header {
+        flex-direction: row;
+      }
       .arabic-section h2 {
         border-left: none;
-        border-right: 4px solid var(--primary);
+        border-right: 4px solid var(--emerald);
         padding-left: 0;
         padding-right: 12px;
       }
@@ -96,8 +133,9 @@
         padding-right: 20px;
       }
       a {
-        color: #a78bfa;
+        color: #34d399;
         text-decoration: none;
+        font-weight: 600;
       }
       a:hover {
         text-decoration: underline;
@@ -115,99 +153,112 @@
   <body>
     <div class="container">
       <header>
-        <span class="badge">StudyFlow App</span>
-        <h1>Privacy Policy</h1>
-        <p style="margin: 4px 0 0; font-size: 0.85rem; color: #9ca3af;">Last updated: November 4, 2026</p>
+        <div class="logo-box">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            <path d="m9 12 2 2 4-4"></path>
+          </svg>
+        </div>
+        <div class="header-info">
+          <h1>Privacy Policy</h1>
+          <p class="meta" id="last-updated-date">Last updated: November 2026 · StudyFlow</p>
+        </div>
       </header>
 
-      <div class="card">
-        <strong>Overview:</strong> StudyFlow ("we", "our", or "app") is a personal study management and productivity application. We prioritize your privacy above all else: StudyFlow runs primarily on your local browser. We do not sell your personal data, track your browsing across the web, or collect unnecessary information.
+      <div class="callout">
+        <strong>Privacy Commitment:</strong> Your privacy is paramount. StudyFlow runs locally in your browser. We never sell your data, track you across websites, or read unauthorized personal files.
       </div>
 
-      <h2>1. Information We Collect</h2>
-      <p>StudyFlow is designed as a client-side web application. Data collection is limited strictly to what is required to provide the core study tools:</p>
+      <h2>1. Information We Handle</h2>
       <ul>
-        <li><strong>Study Data:</strong> Flashcards, decks, categories, tasks, study goals, exam schedules, quiz results, and Pomodoro session logs created by you. This data is stored locally in your browser's local storage (localStorage and Cache API).</li>
-        <li><strong>Google Account Information (Optional):</strong> If you choose to connect your Google account, we access your name, email address, and profile picture strictly to display your user profile within the app.</li>
-        <li><strong>Gemini AI API Key (Optional):</strong> If you choose to use AI flashcard generation, your personal Gemini API key is stored locally in your browser to make direct, authenticated requests to Google Gemini APIs.</li>
+        <li><strong>Study Data:</strong> Flashcards, decks, tasks, pomodoro sessions, and grade records are stored locally on your device (in localStorage and browser cookies).</li>
+        <li><strong>Google Account Information (Optional):</strong> When you link Google Drive, we only access your basic profile (name, email, profile photo) to personalize your study dashboard.</li>
+        <li><strong>BYOK Gemini API Key (Optional):</strong> If you provide a Google AI Studio API key, it is stored in your browser's local storage and used solely to communicate directly with Google's Gemini API.</li>
       </ul>
 
-      <h2>2. Google User Data, Calendar & Drive Integration</h2>
-      <p>When you click "Connect Google", StudyFlow requests permission to use Google Identity Services and the restricted/sensitive scopes:</p>
+      <h2>2. Google API Services & Limited Use Policy</h2>
+      <p>StudyFlow's use and transfer of information received from Google APIs to any other app will adhere to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
       <ul>
-        <li><code>https://www.googleapis.com/auth/drive.appdata</code> (Google Drive Application Data folder)</li>
-        <li><code>https://www.googleapis.com/auth/calendar.readonly</code> (Google Calendar Read-Only Access)</li>
-        <li><code>https://www.googleapis.com/auth/userinfo.profile</code> & <code>https://www.googleapis.com/auth/userinfo.email</code></li>
-      </ul>
-      <p><strong>Google API Limited Use Disclosure:</strong></p>
-      <ul>
-        <li>StudyFlow only reads and writes a single encrypted backup file (<code>studyflow_backup.json</code>) inside your private, hidden Google Drive <code>appDataFolder</code>.</li>
-        <li>StudyFlow accesses Google Calendar strictly in read-only mode to retrieve scheduled events, display them on your study timeline, and cache them for offline productivity.</li>
-        <li>StudyFlow <strong>cannot</strong> see, access, modify, or read any other personal files, documents, photos, or folders in your Google Drive, nor create or modify events in your Calendar without explicit user action.</li>
-        <li>We do not transfer, sell, or share your Google user data with any external servers, third-party analytics, or advertising brokers.</li>
-        <li>StudyFlow adheres strictly to the <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>, including the Limited Use requirements.</li>
+        <li><strong>Google Drive:</strong> We request strictly <code>https://www.googleapis.com/auth/drive.appdata</code> access. This restricts StudyFlow to its own private hidden application data folder (<code>studyflow_backup.json</code>). We cannot see, browse, edit, or delete any of your other Google Drive files or folders.</li>
+        <li><strong>Google Calendar:</strong> We request read-only access (<code>calendar.readonly</code>) strictly to show scheduled exam and timeline events on your personal study calendar.</li>
       </ul>
 
-      <h2>3. How We Use Your Information</h2>
+      <h2>3. Data Retention and Deletion</h2>
+      <p>You have full sovereignty over your information:</p>
       <ul>
-        <li>To persist your study flashcards, decks, and timer history across sessions.</li>
-        <li>To enable seamless cloud backup and restoration of your study state across your own devices.</li>
-        <li>To communicate directly with Google Gemini APIs when you request AI flashcard or quiz question generation.</li>
+        <li>You can export all study cards, decks, and metrics at any time as JSON.</li>
+        <li>Clicking <strong>"Delete Account"</strong> in Settings permanently deletes your backup file from Google Drive, revokes Google OAuth tokens via Google's revocation endpoint, and wipes all local storage and cookies instantly.</li>
+        <li>You can also revoke StudyFlow access anytime via <a href="https://myaccount.google.com/connections" target="_blank" rel="noopener noreferrer">Google Connected Apps</a>.</li>
       </ul>
 
-      <h2>4. Data Storage & Deletion</h2>
-      <p>You have full ownership and control over your data at all times:</p>
-      <ul>
-        <li><strong>Local Reset:</strong> You can delete all locally stored data anytime via Settings &rarr; "Reset All Data".</li>
-        <li><strong>Disconnect Google:</strong> You can sign out and revoke Google tokens at any time via Settings &rarr; "Sign Out".</li>
-        <li><strong>Export Data:</strong> You can download a complete JSON copy of your study data anytime via Settings &rarr; "Export JSON".</li>
-      </ul>
+      <h2>4. Cookies & Local Storage</h2>
+      <p>StudyFlow uses essential browser cookies and localStorage strictly to remember your active theme, UI language, study progress, and offline capability. No third-party ad tracking or cross-site profiling cookies are used.</p>
 
-      <h2>5. Contact Information</h2>
-      <p>If you have any questions, inquiries, or requests regarding this Privacy Policy or your data, please contact the developer directly:</p>
+      <h2>5. Contact Us</h2>
+      <p>If you have any questions or privacy inquiries, contact the developer:</p>
       <div class="card">
-        <strong>Developer Contact:</strong><br />
         Email: <a href="mailto:haithamhabta8@gmail.com">haithamhabta8@gmail.com</a><br />
-        Application: StudyFlow (<a href="https://haithamhabta8-droid.github.io/StudyFlow/">haithamhabta8-droid.github.io/StudyFlow</a>)
+        Website: <a href="https://haithamhabta8-droid.github.io/StudyFlow/">haithamhabta8-droid.github.io/StudyFlow</a>
       </div>
 
       <!-- Arabic Translation Section -->
       <div class="arabic-section">
-        <span class="badge">تطبيق StudyFlow</span>
-        <h1>سياسة الخصوصية</h1>
-        <p style="margin: 4px 0 0; font-size: 0.85rem; color: #9ca3af;">آخر تحديث: 4 نوفمبر 2026</p>
+        <header>
+          <div class="logo-box">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+              <path d="m9 12 2 2 4-4"></path>
+            </svg>
+          </div>
+          <div class="header-info">
+            <h1>سياسة الخصوصية</h1>
+            <p class="meta" id="last-updated-date-ar">آخر تحديث: نوفمبر 2026 · StudyFlow</p>
+          </div>
+        </header>
 
-        <div class="card">
-          <strong>ملخص عام:</strong> يُعد تطبيق StudyFlow أداة شخصية لإدارة المذاكرة وتنظيم البطاقات التعليمية والمؤقتات. نضع خصوصيتك في المقام الأول: يعمل التطبيق كلياً داخل متصفحك، ولا نقوم ببيع بياناتك الشخصية أو تتبعك أو جمع أي معلومات غير ضرورية.
+        <div class="callout">
+          <strong>التزام الخصوصية التام:</strong> خصوصيتك مقدسة. StudyFlow تطبيق يعمل في المتصفح المحلي. نحن لا نبيع بياناتك، ولا نتتبعك عبر المواقع، ولا نصل إلى أي ملفات شخصية غير مصرح بها.
         </div>
 
-        <h2>1. البيانات التي يتم جمعها</h2>
-        <p>يعمل StudyFlow كتطبيق ويب يعتمد على التخزين المحلي للمتصفح:</p>
+        <h2>1. البيانات التي يعالجها التطبيق</h2>
         <ul>
-          <li><strong>بيانات الدراسة:</strong> البطاقات التعليمية، التصنيفات، المهام، ومؤقتات بومودورو تُخزن محلياً في متصفحك (localStorage).</li>
-          <li><strong>بيانات حساب Google (اختياري):</strong> عند ربط حساب Google الخاص بك، نقرأ الاسم والبريد الإلكتروني والصورة الشخصية لعرضها في ملفك الشخصي داخل التطبيق فقط.</li>
-          <li><strong>مفتاح Gemini API (اختياري):</strong> عند استخدام ميزات الذكاء الاصطناعي، يُحفظ مفتاحك محلياً للاتصال المباشر بخدمة Google Gemini.</li>
+          <li><strong>بيانات الدراسة:</strong> البطاقات، المواد، المؤقتات، والدرجات تُخزن محلياً في متصفحك (localStorage و Cookies).</li>
+          <li><strong>معلومات Google (اختيارية):</strong> الاسم والبريد والصورة لعرض ملفك الشخصي فقط.</li>
+          <li><strong>مفتاح Gemini API:</strong> يُخزن محلياً لتوجيه الطلبات مباشرة لخوادم Google Gemini الرسمية.</li>
         </ul>
 
-        <h2>2. استخدام بيانات Google وتكامل Google Drive و Google Calendar</h2>
-        <p>يستخدم التطبيق نطاقات الوصول المحددة الخاصة بمجلد التطبيق والتقويم (<code>https://www.googleapis.com/auth/drive.appdata</code> و <code>https://www.googleapis.com/auth/calendar.readonly</code>):</p>
-        <ul>
-          <li>يصل التطبيق فقط إلى مجلد التطبيق المخفي والخاص به في Google Drive لرفع واستعادة ملف النسخة الاحتياطية (<code>studyflow_backup.json</code>).</li>
-          <li>يصل التطبيق إلى تقويم Google للقراءة فقط لعرض جداول المواعيد والمهام الدراسية ومزامنتها محلياً دون تعديل أو مسح أي مواعيد خارجية.</li>
-          <li><strong>لا يمكن</strong> للتطبيق الوصول إلى أو قراءة أو تعديل أي ملفات أو صور أو مستندات أخرى في Google Drive الخاص بك.</li>
-          <li>نلتزم بسياسة بيانات مستخدمي خدمات Google API ومتطلبات الاستخدام المحدود (Limited Use) الصارمة.</li>
-        </ul>
+        <h2>2. امتثال نطاقات Google المحدودة</h2>
+        <p>StudyFlow يلتزم بسياسة استخدام بيانات مستخدمي خدمات Google API بما في ذلك متطلبات الاستخدام المحدود (Limited Use). نطلب حصرياً نطاق <code>drive.appdata</code> للنسخ الاحتياطي في مجلد التطبيق الخاص ونطاق <code>calendar.readonly</code> لعرض المواعيد في المخطط الزمني.</p>
 
-        <h2>3. التحكم في البيانات وحذفها</h2>
-        <p>تتمتع بالتحكم الكامل في بياناتك، ويمكنك في أي وقت تصدير نسخة JSON كاملة أو مسح كافة البيانات المسجلة بضغطة زر واحدة من قائمة الإعدادات.</p>
+        <h2>3. حذف البيانات والتحكم بها</h2>
+        <ul>
+          <li>يمكنك في أي وقت مسح كافة بياناتك بضغطة زر واحدة أو الضغط على "حذف الحساب" الذي يحذف النسخة السحابية ويلغي الربط رسمياً من حساب Google الخاص بك فوراً.</li>
+        </ul>
 
         <h2>4. للتواصل والاستفسارات</h2>
-        <p>لأي استفسار بخصوص سياسة الخصوصية، يُرجى التواصل عبر البريد الإلكتروني: <a href="mailto:haithamhabta8@gmail.com">haithamhabta8@gmail.com</a>.</p>
+        <p>لأي استفسار بخصوص الخصوصية: <a href="mailto:haithamhabta8@gmail.com">haithamhabta8@gmail.com</a>.</p>
       </div>
 
       <footer>
-        &copy; 2026 StudyFlow. All rights reserved.
+        &copy; <span id="current-year">2026</span> StudyFlow. All rights reserved.
       </footer>
     </div>
+
+    <script>
+      (function() {
+        const now = new Date();
+        const enFormatter = new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric' });
+        const arFormatter = new Intl.DateTimeFormat('ar-SA', { month: 'long', year: 'numeric' });
+        
+        const enEl = document.getElementById('last-updated-date');
+        if (enEl) enEl.textContent = 'Last updated: ' + enFormatter.format(now) + ' · StudyFlow';
+        
+        const arEl = document.getElementById('last-updated-date-ar');
+        if (arEl) arEl.textContent = 'آخر تحديث: ' + arFormatter.format(now) + ' · StudyFlow';
+
+        const yrEl = document.getElementById('current-year');
+        if (yrEl) yrEl.textContent = now.getFullYear();
+      })();
+    </script>
   </body>
 </html>
