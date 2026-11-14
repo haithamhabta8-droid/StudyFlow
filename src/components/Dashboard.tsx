@@ -1210,31 +1210,48 @@ export const Dashboard: React.FC<DashboardProps> = ({
             </div>
 
             <div className="grid grid-cols-7 gap-2 pt-2">
-              {weekActivity.map((day) => {
-                const isToday = day.isToday;
-                const maxMin = Math.max(1, ...weekActivity.map((d) => d.minutes));
-                const barPct = Math.min(100, Math.round((day.minutes / maxMin) * 100));
-
-                return (
-                  <div key={day.dateKey} className="flex flex-col items-center gap-1.5">
-                    <div className="w-full bg-[#1c1c3a] rounded-xl h-20 flex flex-col justify-end p-1 border border-[#2a2a4a]/40">
-                      {day.minutes > 0 ? (
-                        <div
-                          style={{ height: `${Math.max(15, barPct)}%` }}
-                          className="w-full rounded-lg bg-gradient-to-t from-emerald-600 to-teal-400 shadow-sm"
-                        />
-                      ) : null}
-                    </div>
-                    <span
-                      className={`text-[10px] font-bold ${
-                        isToday ? 'text-emerald-400' : 'text-[#8888a8]'
-                      }`}
-                    >
-                      {day.dayLabel}
-                    </span>
-                  </div>
+              {(() => {
+                const targetMax = Math.max(
+                  dailyGoal,
+                  ...weekActivity.map((d) =>
+                    d.isToday ? d.minutes + activeFocusSeconds / 60 : d.minutes
+                  )
                 );
-              })}
+                return weekActivity.map((day) => {
+                  const isToday = day.isToday;
+                  const effectiveMinutes = isToday
+                    ? day.minutes + activeFocusSeconds / 60
+                    : day.minutes;
+                  const barPct =
+                    effectiveMinutes > 0
+                      ? Math.min(100, Math.round((effectiveMinutes / targetMax) * 100))
+                      : 0;
+
+                  return (
+                    <div
+                      key={day.dateKey}
+                      title={`${Math.round(effectiveMinutes)} / ${dailyGoal} min`}
+                      className="flex flex-col items-center gap-1.5"
+                    >
+                      <div className="w-full bg-[#1c1c3a] rounded-xl h-20 flex flex-col justify-end p-1 border border-[#2a2a4a]/40">
+                        {effectiveMinutes > 0 ? (
+                          <div
+                            style={{ height: `${Math.max(4, barPct)}%` }}
+                            className="w-full rounded-lg bg-gradient-to-t from-emerald-600 to-teal-400 shadow-sm transition-all duration-300"
+                          />
+                        ) : null}
+                      </div>
+                      <span
+                        className={`text-[10px] font-bold ${
+                          isToday ? 'text-emerald-400' : 'text-[#8888a8]'
+                        }`}
+                      >
+                        {day.dayLabel}
+                      </span>
+                    </div>
+                  );
+                });
+              })()}
             </div>
 
             {isExpanded && (

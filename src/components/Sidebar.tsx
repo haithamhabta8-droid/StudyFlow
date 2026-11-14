@@ -95,7 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Persistent Sidebar */}
       <aside
-        className={`fixed top-0 bottom-0 start-0 z-50 flex flex-col w-72 bg-[#12122a] border-e border-[#2a2a4a] transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 bottom-0 start-0 h-screen z-50 flex flex-col w-72 bg-[#12122a] border-e border-[#2a2a4a] transition-transform duration-300 ease-in-out ${
           isOpenMobile
             ? 'translate-x-0'
             : isCollapsedDesktop
@@ -111,7 +111,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         }}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-4 border-b border-[#2a2a4a]/80 shrink-0">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-[#2a2a4a] shrink-0">
           <button
             data-tour="workspace"
             onClick={onGoHome}

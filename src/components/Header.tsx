@@ -82,8 +82,8 @@ export const Header: React.FC<HeaderProps> = ({
   ];
 
   return (
-    <header className="sticky top-0 z-40 bg-[#0a0a1a]/85 backdrop-blur-md border-b border-[#2a2a4a] px-4 lg:px-8 py-3 transition-colors">
-      <div className="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 max-w-7xl mx-auto">
+    <header className="sticky top-0 z-40 min-h-16 lg:h-16 flex items-center bg-[#0a0a1a]/85 backdrop-blur-md border-b border-[#2a2a4a] px-4 lg:px-8 py-2.5 lg:py-0 transition-colors">
+      <div className="w-full flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 max-w-7xl mx-auto">
         {/* Left / Start Zone */}
         <div className="flex items-center gap-3 shrink-0">
           {/* Capsule Button Bar (for mobile & collapsed sidebar) */}

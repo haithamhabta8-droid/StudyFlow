@@ -3,14 +3,14 @@ import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
-export default defineConfig(() => {
+export default defineConfig(({ command }) => {
   // If running in GitHub Actions for GitHub Pages, base path is /StudyFlow/ (or repo name)
   const repoName = process.env.GITHUB_REPOSITORY
     ? `/${process.env.GITHUB_REPOSITORY.split('/')[1]}/`
     : './';
 
   return {
-    base: repoName,
+    base: command === 'serve' ? '/' : repoName,
     plugins: [react(), tailwindcss()],
     resolve: {
       alias: {
@@ -18,6 +18,9 @@ export default defineConfig(() => {
       },
     },
     server: {
+      host: '0.0.0.0',
+      port: 3000,
+      allowedHosts: true,
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
       // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',

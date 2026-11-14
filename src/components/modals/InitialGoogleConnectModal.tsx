@@ -24,9 +24,9 @@ export const InitialGoogleConnectModal: React.FC<InitialGoogleConnectModalProps>
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-300"
     >
-      <div className="bg-[#12122a] border border-[#2a2a4a] rounded-3xl p-7 max-w-md w-full shadow-2xl space-y-6 text-center">
+      <div className="my-auto bg-[#12122a] border border-[#2a2a4a] rounded-3xl p-7 max-w-md w-full shadow-2xl space-y-6 text-center">
         {/* Logos Header: StudyFlow + Google Integration */}
         <div className="flex items-center justify-center gap-3">
           <StudyFlowLogo size="lg" />

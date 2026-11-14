@@ -302,20 +302,18 @@ svg.text-purple-400 {
   color: var(--primary) !important;
 }
 
-/* Page Smooth Fade-In Animation (replaces jarring slide) */
+/* Page Smooth Fade-In Animation (opacity only so fixed modals/sidebar stay anchored to viewport) */
 @keyframes pageFadeIn {
   from {
     opacity: 0;
-    transform: translateY(2px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .animate-page-fade {
-  animation: pageFadeIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hover\:text-purple-300:hover,

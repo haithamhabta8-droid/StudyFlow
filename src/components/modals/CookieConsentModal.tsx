@@ -27,9 +27,9 @@ export const CookieConsentModal: React.FC<CookieConsentModalProps> = ({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[140] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
+      className="fixed inset-0 z-[140] flex items-center justify-center overflow-y-auto bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200"
     >
-      <div className="bg-[#12122a] border border-[#2a2a4a] rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 text-start relative animate-in zoom-in-95 duration-200">
+      <div className="my-auto bg-[#12122a] border border-[#2a2a4a] rounded-3xl p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 text-start relative animate-in zoom-in-95 duration-200">
         {/* Header with Centered Purple Diamond Logo */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -88,7 +88,7 @@ export const CookieConsentModal: React.FC<CookieConsentModalProps> = ({
           <button
             type="button"
             onClick={onAcceptAll}
-            className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-900/40 transition-all active:scale-95"
+            className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs flex items-center justify-center text-center shadow-lg shadow-emerald-900/40 transition-all active:scale-95"
           >
             {isAr ? 'قبول جميع ملفات تعريف الارتباط' : 'Accept all cookies'}
           </button>
@@ -96,7 +96,7 @@ export const CookieConsentModal: React.FC<CookieConsentModalProps> = ({
           <button
             type="button"
             onClick={onAcceptNecessary}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] border border-[#2a2a4a] text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] border border-[#2a2a4a] text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] flex items-center justify-center text-center transition-colors"
           >
             {isAr ? 'ملفات تعريف الارتباط الضرورية فقط' : 'Necessary cookies only'}
           </button>
