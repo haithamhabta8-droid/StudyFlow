@@ -11,9 +11,16 @@ import {
   AlertCircle,
   Copy,
   Check,
+  ChevronDown,
 } from 'lucide-react';
-import { Category } from '../types/index.ts';
-import { getGeminiApiKey, generateWithGemini } from '../utils/gemini.ts';
+import { Category, ThinkingLevelOption } from '../types/index.ts';
+import {
+  DEFAULT_GEMINI_MODEL,
+  getGeminiApiKey,
+  generateWithGemini,
+  getModelInfo,
+} from '../utils/gemini.ts';
+import { useGeminiModels } from '../hooks/useGeminiModels.ts';
 
 interface Message {
   id: string;
@@ -25,21 +32,42 @@ interface Message {
 interface AskAIViewProps {
   category?: Category | null;
   lang: 'ar' | 'en';
+  model?: string;
+  thinkingLevel?: ThinkingLevelOption;
+  onChangeModel?: (modelId: string) => void;
   onOpenSettings: () => void;
 }
 
 export const AskAIView: React.FC<AskAIViewProps> = ({
   category,
   lang,
+  model = DEFAULT_GEMINI_MODEL,
+  thinkingLevel,
+  onChangeModel,
   onOpenSettings,
 }) => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const modelMenuRef = useRef<HTMLDivElement>(null);
 
+  const { models: liveModels } = useGeminiModels(true);
   const apiKey = getGeminiApiKey();
+  const activeModelInfo =
+    liveModels.find((m) => m.id === model) || getModelInfo(model);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (modelMenuRef.current && !modelMenuRef.current.contains(e.target as Node)) {
+        setIsModelMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -90,7 +118,7 @@ export const AskAIView: React.FC<AskAIViewProps> = ({
           }.`
         : 'General Study Session.';
 
-      const systemInstruction = `You are StudyFlow's expert AI Tutor powered by Google Gemini 3.8 Flash.
+      const systemInstruction = `You are StudyFlow's expert AI Tutor powered by ${activeModelInfo.name}.
 Provide clear, structured, encouraging, and pedagogically sound responses to student questions.
 Format responses with bullet points, bold key terms, and concise paragraphs.
 Context: ${subjectContext}
@@ -98,7 +126,8 @@ Language: ${lang === 'ar' ? 'Arabic' : 'English'}`;
 
       const aiReply = await generateWithGemini(text, {
         systemInstruction,
-        model: 'gemini-3.8-flash',
+        model: activeModelInfo.id,
+        thinkingLevel,
       });
 
       const assistantMsg: Message = {
@@ -130,21 +159,98 @@ Language: ${lang === 'ar' ? 'Arabic' : 'English'}`;
 
   return (
     <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-140px)] rounded-3xl bg-[#0e0e22] border border-[#2a2a4a] overflow-hidden shadow-2xl">
-      {/* 1. Modern Chat Header */}
-      <div className="p-4 px-6 bg-[#12122a] border-b border-[#2a2a4a] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+      {/* 1. Modern Chat Header with Interactive Model Selector */}
+      <div className="p-4 px-6 bg-[#12122a] border-b border-[#2a2a4a] flex flex-wrap items-center justify-between gap-3 shrink-0">
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
-          <div>
-            <div className="flex items-center gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-extrabold text-sm text-[#e8e8f0]">
                 {lang === 'ar' ? 'المساعد الدراسي الذكي (Ask AI)' : 'StudyFlow AI Tutor'}
               </h2>
-              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                <span>gemini-3.8-flash</span>
-              </span>
+              {onChangeModel ? (
+                <div className="relative" ref={modelMenuRef}>
+                  <button
+                    type="button"
+                    onClick={() => setIsModelMenuOpen((prev) => !prev)}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/50 text-[11px] font-bold text-[#e8e8f0] transition-colors whitespace-nowrap"
+                  >
+                    <span>{activeModelInfo.name}</span>
+                    {activeModelInfo.badge === 'new' && (
+                      <span className="text-[10px] font-bold text-emerald-400">
+                        {lang === 'ar' ? 'جديد' : 'New'}
+                      </span>
+                    )}
+                    {activeModelInfo.badge === 'paid' && (
+                      <span className="text-[10px] font-bold text-sky-400">
+                        {lang === 'ar' ? 'مدفوع' : 'Paid'}
+                      </span>
+                    )}
+                    <ChevronDown className="w-3.5 h-3.5 text-[#8888a8]" />
+                  </button>
+
+                  {isModelMenuOpen && (
+                    <div className="absolute start-0 mt-1.5 w-64 rounded-2xl bg-[#12122a] border border-[#2a2a4a] shadow-2xl py-1.5 z-40 max-h-72 overflow-y-auto">
+                      {liveModels.map((m) => {
+                        const isSelected = m.id === activeModelInfo.id;
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            onClick={() => {
+                              onChangeModel(m.id);
+                              setIsModelMenuOpen(false);
+                            }}
+                            className={`w-full px-3 py-2 text-start flex items-center justify-between gap-2 text-xs transition-colors ${
+                              isSelected
+                                ? 'bg-emerald-500/15 text-emerald-300 font-bold'
+                                : 'text-[#e8e8f0] hover:bg-[#1c1c3a]'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="truncate">{m.name}</span>
+                              {m.badge && (
+                                <span
+                                  className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                                    m.badge === 'new'
+                                      ? 'bg-emerald-500/15 text-emerald-400'
+                                      : m.badge === 'paid'
+                                      ? 'bg-sky-500/15 text-sky-400'
+                                      : 'bg-[#1c1c3a] text-[#8888a8]'
+                                  }`}
+                                >
+                                  {m.badge === 'new'
+                                    ? lang === 'ar'
+                                      ? 'جديد'
+                                      : 'New'
+                                    : m.badge === 'paid'
+                                    ? lang === 'ar'
+                                      ? 'مدفوع'
+                                      : 'Paid'
+                                    : m.badge === 'latest'
+                                    ? lang === 'ar'
+                                      ? 'محدّث'
+                                      : 'Latest'
+                                    : lang === 'ar'
+                                    ? 'سريع'
+                                    : 'Fast'}
+                                </span>
+                              )}
+                            </div>
+                            {isSelected && <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <span className="text-[11px] font-bold text-emerald-400">
+                  {activeModelInfo.name}
+                </span>
+              )}
             </div>
             {category && (
               <span className="text-[11px] text-[#8888a8]">
@@ -184,8 +290,8 @@ Language: ${lang === 'ar' ? 'Arabic' : 'English'}`;
               </h3>
               <p className="text-xs text-[#8888a8] leading-relaxed max-w-md mx-auto">
                 {lang === 'ar'
-                  ? 'اسأل أي استفسار دراسي، اطلب تلخيص المحاضرات، أو تدرب على أسئلة امتحانات ذكية مدعومة بمحرك Gemini 3.8 Flash.'
-                  : 'Ask course questions, request summaries, or test your comprehension with high-yield practice drills powered by Gemini 3.8 Flash.'}
+                  ? `اسأل أي استفسار دراسي، اطلب تلخيص المحاضرات، أو تدرب على أسئلة امتحانات ذكية مدعومة بمحرك ${activeModelInfo.name}.`
+                  : `Ask course questions, request summaries, or test your comprehension with high-yield practice drills powered by ${activeModelInfo.name}.`}
               </p>
             </div>
 
@@ -258,8 +364,8 @@ Language: ${lang === 'ar' ? 'Arabic' : 'English'}`;
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>
                 {lang === 'ar'
-                  ? 'Gemini 3.8 Flash يفكر في إجابتك...'
-                  : 'Gemini 3.8 Flash is thinking...'}
+                  ? `${activeModelInfo.name} يفكر في إجابتك...`
+                  : `${activeModelInfo.name} is thinking...`}
               </span>
             </div>
           </div>

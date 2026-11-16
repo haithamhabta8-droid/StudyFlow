@@ -130,7 +130,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
           {!isGoogleConnected ? (
             <button
               onClick={onConnectGoogle}
-              className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 font-bold text-xs shadow-md shadow-black/20 transition-all hover:scale-105 active:scale-95"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 font-bold text-xs shadow-sm transition-all hover:scale-105 active:scale-95"
             >
               <GoogleLogo className="w-4 h-4 shrink-0" />
               <span>{lang === 'ar' ? 'ربط حساب Google' : 'Sign in with Google'}</span>

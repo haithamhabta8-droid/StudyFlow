@@ -2,20 +2,43 @@ import { AppState, WidgetConfig } from '../types/index.ts';
 
 export const STORE_KEY = 'studyFlow_v14';
 
+export const CURRENT_LAYOUT_PRESET_VERSION = 2;
+
+// 3-Tier Asymmetric Bento Layout (sums to 12 cols per desktop row: 8+4, 4+4+4, 4+4+4, 3+3+3+3)
 export const DEFAULT_WIDGETS: WidgetConfig[] = [
-  { id: 'pomodoro', size: 'half', visible: true },
-  { id: 'sessions', size: 'half', visible: true },
-  { id: 'goals', size: 'half', visible: true },
-  { id: 'tasks', size: 'half', visible: true },
-  { id: 'stats', size: 'half', visible: true },
-  { id: 'aiUsage', size: 'half', visible: true },
-  { id: 'actions', size: 'half', visible: true },
-  { id: 'streak', size: 'half', visible: true },
-  { id: 'grades', size: 'half', visible: true },
-  { id: 'exams', size: 'half', visible: true },
-  { id: 'weeklyActivity', size: 'half', visible: true },
-  { id: 'quizzes', size: 'half', visible: true },
+  { id: 'pomodoro', size: 'two-thirds', visible: true },
+  { id: 'tasks', size: 'third', visible: true },
+  { id: 'goals', size: 'third', visible: true },
+  { id: 'sessions', size: 'third', visible: true },
+  { id: 'weeklyActivity', size: 'third', visible: true },
+  { id: 'actions', size: 'third', visible: true },
+  { id: 'streak', size: 'third', visible: true },
+  { id: 'exams', size: 'third', visible: true },
+  { id: 'stats', size: 'quarter', visible: true },
+  { id: 'grades', size: 'quarter', visible: true },
+  { id: 'quizzes', size: 'quarter', visible: true },
+  { id: 'aiUsage', size: 'quarter', visible: true },
 ];
+
+export const DASHBOARD_PRESETS: Record<'bento' | 'classic' | 'compact' | 'fourColumn', WidgetConfig[]> = {
+  bento: DEFAULT_WIDGETS,
+  classic: [
+    { id: 'pomodoro', size: 'half', visible: true },
+    { id: 'sessions', size: 'half', visible: true },
+    { id: 'goals', size: 'half', visible: true },
+    { id: 'tasks', size: 'half', visible: true },
+    { id: 'stats', size: 'half', visible: true },
+    { id: 'aiUsage', size: 'half', visible: true },
+    { id: 'actions', size: 'half', visible: true },
+    { id: 'streak', size: 'half', visible: true },
+    { id: 'grades', size: 'half', visible: true },
+    { id: 'exams', size: 'half', visible: true },
+    { id: 'weeklyActivity', size: 'half', visible: true },
+    { id: 'quizzes', size: 'half', visible: true },
+  ],
+  compact: DEFAULT_WIDGETS.map((w) => ({ ...w, size: 'third' as const })),
+  fourColumn: DEFAULT_WIDGETS.map((w) => ({ ...w, size: 'quarter' as const })),
+};
 
 export const PRIMARY_COLORS = [
   '#7c5cfc', // Violet
@@ -65,12 +88,12 @@ export function getDefaultState(): AppState {
       provider: 'gemini',
       apiKey: '',
       baseUrl: 'https://generativelanguage.googleapis.com',
-      model: 'gemini-3.8-flash',
+      model: 'gemini-4-hydrogen',
       goalDaily: 60,
       goalWeekly: 420,
       lang: 'en',
-      theme: getSystemPreferredTheme(),
-      primaryColor: '#22c55e',
+      theme: 'black',
+      primaryColor: '#15803D',
       dashboard: JSON.parse(JSON.stringify(DEFAULT_WIDGETS)),
       showCompletedTasks: false,
       sidebarCollapsed: false,
@@ -79,18 +102,36 @@ export function getDefaultState(): AppState {
       models: [
         {
           id: 'm-1',
-          name: 'Gemini 3.8 Flash',
+          name: 'Gemini 4 Hydrogen',
           provider: 'gemini',
-          modelId: 'gemini-3.8-flash',
+          modelId: 'gemini-4-hydrogen',
           callsToday: 0,
           maxCallsDaily: 20,
           active: true,
         },
         {
           id: 'm-2',
-          name: 'Gemini 3.1 Flash Lite',
+          name: 'Gemini 4 Carbon',
           provider: 'gemini',
-          modelId: 'gemini-3.1-flash-lite',
+          modelId: 'gemini-4-carbon',
+          callsToday: 0,
+          maxCallsDaily: 20,
+          active: false,
+        },
+        {
+          id: 'm-3',
+          name: 'Gemini 4 Argon',
+          provider: 'gemini',
+          modelId: 'gemini-4-argon',
+          callsToday: 0,
+          maxCallsDaily: 20,
+          active: false,
+        },
+        {
+          id: 'm-4',
+          name: 'Gemini 3.5 Flash Lite',
+          provider: 'gemini',
+          modelId: 'gemini-3.5-flash-lite',
           callsToday: 0,
           maxCallsDaily: 20,
           active: false,
@@ -98,6 +139,8 @@ export function getDefaultState(): AppState {
       ],
       activeModelId: 'm-1',
       uniformWidgetsMigrated: true,
+      layoutPresetVersion: CURRENT_LAYOUT_PRESET_VERSION,
+      aiModelV4Migrated: true,
     },
     breakHistory: [],
     lifetimeFocusSeconds: 0,
@@ -173,30 +216,36 @@ export function loadAppState(): AppState {
         }),
       };
 
-      // Always upgrade deprecated model strings to gemini-3.8-flash
+      // Always upgrade deprecated model strings to gemini-4-hydrogen
       if (
         !loadedSettings.model ||
         loadedSettings.model.includes('2.5') ||
         loadedSettings.model.includes('1.5') ||
         loadedSettings.model.includes('2.0') ||
         loadedSettings.model.includes('groq') ||
-        loadedSettings.model.includes('llama')
+        loadedSettings.model.includes('llama') ||
+        (!loadedSettings.aiModelV4Migrated && loadedSettings.model === 'gemini-3.8-flash')
       ) {
-        loadedSettings.model = 'gemini-3.8-flash';
+        loadedSettings.model = 'gemini-4-hydrogen';
         loadedSettings.provider = 'gemini';
       }
+      loadedSettings.aiModelV4Migrated = true;
 
-      // Migrate old purple default to emerald green
+      // Migrate old purple default to forest green
       if (!loadedSettings.primaryColor || loadedSettings.primaryColor === '#7c5cfc') {
-        loadedSettings.primaryColor = '#10b981';
+        loadedSettings.primaryColor = '#15803D';
       }
 
-      // One-time migration to ensure all widgets start with uniform half width
-      if (!loadedSettings.uniformWidgetsMigrated) {
-        loadedSettings.dashboard = loadedSettings.dashboard.map((w: any) => ({
+      // One-time migration to the 3-tier asymmetric Bento layout while preserving visibility toggles
+      if (loadedSettings.layoutPresetVersion !== CURRENT_LAYOUT_PRESET_VERSION) {
+        const visibilityMap = new Map<string, boolean>(
+          (loadedSettings.dashboard || []).map((w: any) => [w.id, w.visible !== false])
+        );
+        loadedSettings.dashboard = DEFAULT_WIDGETS.map((w) => ({
           ...w,
-          size: 'half',
+          visible: visibilityMap.has(w.id) ? Boolean(visibilityMap.get(w.id)) : w.visible,
         }));
+        loadedSettings.layoutPresetVersion = CURRENT_LAYOUT_PRESET_VERSION;
         loadedSettings.uniformWidgetsMigrated = true;
       }
 
@@ -261,15 +310,67 @@ export function saveAppState(state: AppState): void {
   }
 }
 
+export function clearAllLocalStorageAndCookies(): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.clear();
+    }
+  } catch (e) {
+    console.warn('Failed to clear localStorage:', e);
+  }
+
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.clear();
+    }
+  } catch (e) {
+    console.warn('Failed to clear sessionStorage:', e);
+  }
+
+  try {
+    if (typeof document !== 'undefined') {
+      const cookieNames = new Set<string>(['studyflow_meta']);
+      if (document.cookie) {
+        for (const rawCookie of document.cookie.split(';')) {
+          const eqIdx = rawCookie.indexOf('=');
+          const name = (eqIdx >= 0 ? rawCookie.slice(0, eqIdx) : rawCookie).trim();
+          if (name) cookieNames.add(name);
+        }
+      }
+      const pathname = typeof window !== 'undefined' && window.location ? window.location.pathname : '/';
+      for (const name of cookieNames) {
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+        if (pathname && pathname !== '/') {
+          document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=${pathname}`;
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to clear cookies:', e);
+  }
+
+  try {
+    if (typeof window !== 'undefined' && 'caches' in window) {
+      window.caches.delete('studyflow-offline-v1').catch(() => null);
+    }
+  } catch {
+    // ignore cache cleanup failures
+  }
+}
+
 export function exportAppState(state: AppState): void {
-  const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(state, null, 2));
+  const json = JSON.stringify(state, null, 2);
+  const blob = new Blob([json], { type: 'application/json;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
   const downloadAnchor = document.createElement('a');
-  downloadAnchor.setAttribute('href', dataStr);
+  downloadAnchor.setAttribute('href', url);
   const dateStr = new Date().toISOString().slice(0, 10);
   downloadAnchor.setAttribute('download', `StudyFlow_Backup_${dateStr}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export function importAppState(jsonStr: string): AppState | null {
@@ -289,6 +390,12 @@ export function importAppState(jsonStr: string): AppState | null {
           : def.settings.dashboard,
       },
       breakHistory: Array.isArray(parsed.breakHistory) ? parsed.breakHistory : [],
+      calendarEvents: Array.isArray(parsed.calendarEvents) ? parsed.calendarEvents : [],
+      studiedDates: Array.isArray(parsed.studiedDates) ? parsed.studiedDates : [],
+      lastCalendarSync:
+        typeof parsed.lastCalendarSync === 'number' ? parsed.lastCalendarSync : undefined,
+      lifetimeFocusSeconds:
+        typeof parsed.lifetimeFocusSeconds === 'number' ? parsed.lifetimeFocusSeconds : 0,
     };
     saveAppState(validated);
     return validated;

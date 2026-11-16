@@ -136,11 +136,14 @@ export interface AIModelConfig {
   active?: boolean;
 }
 
+export type ThinkingLevelOption = 'LOW' | 'MEDIUM' | 'HIGH' | 'XHIGH';
+
 export interface AppSettings {
   provider: 'groq' | 'openai' | 'gemini' | 'custom';
   apiKey: string;
   baseUrl: string;
   model: string;
+  thinkingLevel?: ThinkingLevelOption;
   goalDaily: number; // in minutes (default 60)
   goalWeekly: number; // in minutes (default 420)
   lang: 'ar' | 'en';
@@ -157,6 +160,8 @@ export interface AppSettings {
   pomoWorkMinutes?: number;
   aiTier?: 'free' | 'paid';
   uniformWidgetsMigrated?: boolean;
+  layoutPresetVersion?: number;
+  aiModelV4Migrated?: boolean;
 }
 
 export interface CalendarEventItem {

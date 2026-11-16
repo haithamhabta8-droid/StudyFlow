@@ -1,8 +1,7 @@
 import React from 'react';
-import { X, Eye, EyeOff, RotateCcw, ChevronUp, ChevronDown, Check } from 'lucide-react';
+import { X, Eye, EyeOff, RotateCcw, ChevronUp, ChevronDown, LayoutGrid } from 'lucide-react';
 import { WidgetConfig, WidgetSize } from '../../types/index.ts';
-import { DEFAULT_WIDGETS } from '../../utils/storage.ts';
-import { t } from '../../utils/translations.ts';
+import { DASHBOARD_PRESETS, DEFAULT_WIDGETS } from '../../utils/storage.ts';
 
 interface CustomizeDashboardModalProps {
   isOpen: boolean;
@@ -45,6 +44,17 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
     onUpdateWidgets(next);
   };
 
+  const handleApplyPreset = (presetKey: 'bento' | 'classic' | 'compact' | 'fourColumn') => {
+    const visibilityMap = new Map<string, boolean>(
+      dashboardWidgets.map((w) => [w.id, w.visible])
+    );
+    const applied = DASHBOARD_PRESETS[presetKey].map((w) => ({
+      ...w,
+      visible: visibilityMap.has(w.id) ? Boolean(visibilityMap.get(w.id)) : w.visible,
+    }));
+    onUpdateWidgets(applied);
+  };
+
   const handleReset = () => {
     onUpdateWidgets(JSON.parse(JSON.stringify(DEFAULT_WIDGETS)));
   };
@@ -53,14 +63,17 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
     pomodoro: lang === 'ar' ? 'مؤقت بومودورو' : 'Pomodoro Timer',
     stats: lang === 'ar' ? 'إحصائيات سريعة' : 'Quick Stats',
     aiUsage: lang === 'ar' ? 'استخدام الذكاء الاصطناعي' : 'AI Daily Usage',
-    goals: lang === 'ar' ? 'تقدم الأهداف اليومية والأسبوعية' : 'Daily & Weekly Goals',
+    goals: lang === 'ar' ? 'الأهداف اليومية والأسبوعية' : 'Study Goals Progress',
     streak: lang === 'ar' ? 'تقويم سلسلة الأيام' : 'Streak Calendar',
+    weeklyActivity: lang === 'ar' ? 'نشاط الأسبوع' : 'Weekly Activity',
     activity: lang === 'ar' ? 'نشاط الأسبوع' : 'Weekly Activity',
+    sessions: lang === 'ar' ? 'جلسات اليوم' : "Today's Sessions",
     sessionsToday: lang === 'ar' ? 'جلسات اليوم' : "Today's Sessions",
     exams: lang === 'ar' ? 'الاختبارات القادمة' : 'Upcoming Exams',
     tasks: lang === 'ar' ? 'مهام اليوم' : "Today's Tasks",
     grades: lang === 'ar' ? 'ملخص الدرجات' : 'Grades Summary',
-    quizAvg: lang === 'ar' ? 'متوسط الكويزات' : 'Quiz Accuracy',
+    quizzes: lang === 'ar' ? 'متوسط الكويزات' : 'Quiz Average',
+    quizAvg: lang === 'ar' ? 'متوسط الكويزات' : 'Quiz Average',
     actions: lang === 'ar' ? 'إجراءات سريعة' : 'Quick Actions',
   };
 
@@ -94,12 +107,50 @@ export const CustomizeDashboardModal: React.FC<CustomizeDashboardModalProps> = (
 
         <p className="text-xs text-[#8888a8] leading-relaxed">
           {lang === 'ar'
-            ? 'حدد الويدجت التي ترغب في إظهارها على لوحة التحكم وغيّر أحجامها.'
-            : 'Select which widgets appear on your dashboard and customize their grid sizes.'}
+            ? 'اختر تخطيطاً جاهزاً أو اسحب البطاقات وغيّر أحجامها بحرية في أي مكان على اللوحة.'
+            : 'Choose a layout preset or drag and resize any widget freely across the dashboard.'}
         </p>
 
+        {/* One-Click Layout Presets */}
+        <div className="space-y-1.5">
+          <span className="text-[11px] font-bold text-[#8888a8] flex items-center gap-1.5">
+            <LayoutGrid className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{lang === 'ar' ? 'قوالب التخطيط السريعة' : 'Quick Layout Presets'}</span>
+          </span>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('bento')}
+              className="px-2.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-xs font-bold text-emerald-300 transition-all text-center"
+            >
+              {lang === 'ar' ? 'بينتو (موصى به)' : 'Bento'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('fourColumn')}
+              className="px-2.5 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#e8e8f0] transition-all text-center"
+            >
+              {lang === 'ar' ? '4 أعمدة (1/4)' : '4 Columns (1/4)'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('compact')}
+              className="px-2.5 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#e8e8f0] transition-all text-center"
+            >
+              {lang === 'ar' ? '3 أعمدة (1/3)' : '3 Columns (1/3)'}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('classic')}
+              className="px-2.5 py-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#e8e8f0] transition-all text-center"
+            >
+              {lang === 'ar' ? 'نصفين (1/2)' : '2 Columns (1/2)'}
+            </button>
+          </div>
+        </div>
+
         {/* Widgets List */}
-        <div className="max-h-96 overflow-y-auto space-y-2.5 pe-1">
+        <div className="max-h-80 overflow-y-auto space-y-2.5 pe-1">
           {dashboardWidgets.map((w, idx) => (
             <div
               key={w.id}

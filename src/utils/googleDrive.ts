@@ -152,13 +152,14 @@ export async function revokeGoogleAccess(token?: string | null): Promise<void> {
   const currentToken = token || getStoredAccessToken();
   if (currentToken) {
     try {
-      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(currentToken)}`, {
+      await fetch('https://oauth2.googleapis.com/revoke', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `token=${encodeURIComponent(currentToken)}`,
       });
     } catch {}
 
-    if (window.google?.accounts?.oauth2?.revoke) {
+    if (typeof window !== 'undefined' && window.google?.accounts?.oauth2?.revoke) {
       await new Promise<void>((resolve) => {
         try {
           window.google!.accounts.oauth2.revoke(currentToken, () => {
@@ -180,16 +181,19 @@ export async function revokeGoogleAccess(token?: string | null): Promise<void> {
 export async function deleteGoogleAccountDataAndRevoke(token?: string | null): Promise<void> {
   const currentToken = token || getStoredAccessToken();
   if (currentToken) {
-    // 1. Delete backup file from Google Drive appDataFolder
+    // 1. Delete all backup files from Google Drive appDataFolder
     try {
-      const existing = await findBackupFile(currentToken);
-      if (existing) {
-        await fetch(`https://www.googleapis.com/drive/v3/files/${existing.id}`, {
+      const backupFiles = await findAllBackupFiles(currentToken);
+      for (const file of backupFiles) {
+        const delRes = await fetch(`https://www.googleapis.com/drive/v3/files/${encodeURIComponent(file.id)}`, {
           method: 'DELETE',
           headers: {
             Authorization: `Bearer ${currentToken}`,
           },
         });
+        if (!delRes.ok && delRes.status !== 404) {
+          console.warn(`Drive backup delete returned ${delRes.status} for file ${file.id}`);
+        }
       }
     } catch (e) {
       console.warn('Error deleting drive backup file during account deletion:', e);
@@ -197,18 +201,22 @@ export async function deleteGoogleAccountDataAndRevoke(token?: string | null): P
 
     // 2. Call Google OAuth2 token revocation endpoint directly
     try {
-      await fetch(`https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(currentToken)}`, {
+      const revokeRes = await fetch('https://oauth2.googleapis.com/revoke', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
+        body: `token=${encodeURIComponent(currentToken)}`,
       });
+      if (!revokeRes.ok) {
+        console.warn(`OAuth token revoke returned ${revokeRes.status}`);
+      }
     } catch (e) {
       console.warn('OAuth token revoke error:', e);
     }
 
     // 3. Also call Google Identity Services client revocation
-    if (window.google?.accounts?.oauth2?.revoke) {
+    if (typeof window !== 'undefined' && window.google?.accounts?.oauth2?.revoke) {
       await new Promise<void>((resolve) => {
         try {
           window.google!.accounts.oauth2.revoke(currentToken, () => resolve());
@@ -223,9 +231,9 @@ export async function deleteGoogleAccountDataAndRevoke(token?: string | null): P
 }
 
 /**
- * Locate existing backup file in Google Drive appDataFolder
+ * Locate all existing backup files in Google Drive appDataFolder
  */
-async function findBackupFile(token: string): Promise<{ id: string; name: string } | null> {
+async function findAllBackupFiles(token: string): Promise<Array<{ id: string; name: string }>> {
   const query = encodeURIComponent(`name='${BACKUP_FILENAME}' and trashed=false`);
   const url = `https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=${query}&fields=files(id,name,modifiedTime)`;
 
@@ -245,10 +253,15 @@ async function findBackupFile(token: string): Promise<{ id: string; name: string
   }
 
   const data = await res.json();
-  if (data.files && data.files.length > 0) {
-    return data.files[0];
-  }
-  return null;
+  return Array.isArray(data.files) ? data.files : [];
+}
+
+/**
+ * Locate existing backup file in Google Drive appDataFolder
+ */
+async function findBackupFile(token: string): Promise<{ id: string; name: string } | null> {
+  const files = await findAllBackupFiles(token);
+  return files.length > 0 ? files[0] : null;
 }
 
 /**

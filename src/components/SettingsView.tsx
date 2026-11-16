@@ -28,7 +28,7 @@ import {
   FileText,
 } from 'lucide-react';
 import { GoogleLogo } from './GoogleLogo.tsx';
-import { AppSettings, AppState, UserProfile } from '../types/index.ts';
+import { AppSettings, AppState, ThinkingLevelOption, UserProfile } from '../types/index.ts';
 import { PRIMARY_COLORS, exportAppState } from '../utils/storage.ts';
 import { t } from '../utils/translations.ts';
 import {
@@ -47,7 +47,9 @@ import {
   setGeminiApiKey,
   testGeminiApiKey,
   DEFAULT_GEMINI_MODEL,
+  isGemini4Model,
 } from '../utils/gemini.ts';
+import { useGeminiModels } from '../hooks/useGeminiModels.ts';
 
 interface SettingsViewProps {
   state: AppState;
@@ -56,7 +58,7 @@ interface SettingsViewProps {
   onUpdateProfile: (profile: Partial<UserProfile>) => void;
   onRestoreState: (restored: AppState) => void;
   onImportState: (file: File) => void;
-  onResetAll: () => void;
+  onResetAll: (options?: { preserveTab?: boolean; wipeAll?: boolean }) => void;
   onStartTutorial?: () => void;
   onOpenTerms?: (tab: 'terms' | 'privacy') => void;
 }
@@ -76,7 +78,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   // Appearance & Language State
   const theme = state.settings.theme || 'black';
   const currentLang = state.settings.lang || 'en';
-  const primaryColor = state.settings.primaryColor || '#22c55e';
+  const primaryColor = state.settings.primaryColor || '#15803D';
   const [hexInput, setHexInput] = useState(primaryColor.replace('#', '').toUpperCase());
 
   // Goals State
@@ -89,6 +91,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     return getGeminiApiKey() || state.settings.apiKey || '';
   });
   const [showApiKey, setShowApiKey] = useState(false);
+  const { models: liveModels, meta: modelSyncMeta, isSyncing: isSyncingModels, refreshModels } = useGeminiModels(true);
   const [selectedModel, setSelectedModel] = useState(
     state.settings.model || DEFAULT_GEMINI_MODEL
   );
@@ -113,14 +116,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleConfirmDeleteAccount = async () => {
     const token = getStoredAccessToken();
     await deleteGoogleAccountDataAndRevoke(token);
-    onUpdateProfile({
-      name: 'Student',
-      email: '',
-      avatar: '',
-      signedIn: false,
-      googleId: undefined,
-    });
-    onResetAll();
+    setApiKeyInput('');
+    setIsOfflineCached(false);
+    setDriveStatusMessage(null);
+    setTestResult(null);
+    setOfflineStatus(null);
+    setGoalsStatusMessage(null);
+    onResetAll({ preserveTab: true, wipeAll: true });
   };
 
   // Offline Mode State
@@ -146,22 +148,34 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     }
   }, [state.settings.apiKey]);
 
+  // If Google removes the currently selected model in a live sync, fall back to top available model
+  useEffect(() => {
+    if (modelSyncMeta.isLive && liveModels.length > 0 && !liveModels.some((m) => m.id === selectedModel)) {
+      const nextId = liveModels[0].id;
+      setSelectedModel(nextId);
+      onUpdateSettings({ model: nextId });
+    }
+  }, [modelSyncMeta.isLive, liveModels, selectedModel]);
+
   // Auto-recognize pasted Gemini API key
   const handleKeyInputChange = (val: string) => {
     setApiKeyInput(val);
     const trimmed = val.trim();
     if (trimmed.startsWith('AIza') && trimmed.length >= 35) {
-      setSelectedModel('gemini-3.8-flash');
+      const targetModel = selectedModel || DEFAULT_GEMINI_MODEL;
+      setSelectedModel(targetModel);
       setGeminiApiKey(trimmed);
-      onUpdateSettings({ apiKey: trimmed, model: 'gemini-3.8-flash' });
-      testGeminiApiKey(trimmed, 'gemini-3.8-flash').then((res) => {
+      onUpdateSettings({ apiKey: trimmed, model: targetModel });
+      refreshModels(true, trimmed);
+      testGeminiApiKey(trimmed, targetModel).then((res) => {
         if (res.success) {
+          const usedModel = res.resolvedModel || targetModel;
           setTestResult({
             success: true,
             message:
               lang === 'ar'
-                ? '✓ تم التعرف على المفتاح وتفعيله بنجاح! (gemini-3.8-flash)'
-                : '✓ Key recognized and activated successfully! (gemini-3.8-flash)',
+                ? `✓ تم التعرف على المفتاح وتفعيله بنجاح! (${usedModel})`
+                : `✓ Key recognized and activated successfully! (${usedModel})`,
           });
           setTimeout(() => setTestResult(null), 4000);
         }
@@ -217,6 +231,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         apiKey: trimmed,
         model: selectedModel,
       });
+      refreshModels(true, trimmed);
       setTestResult({
         success: true,
         message:
@@ -272,9 +287,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             ? '✓ الاتصال ناجح! مفتاح Google Gemini صالح وجاهز للاستخدام.'
             : '✓ Connection successful! Google Gemini API key is valid and working.',
       });
-      // Save valid key automatically
+      // Save valid key automatically and sync live models
       setGeminiApiKey(keyToTest);
       onUpdateSettings({ apiKey: keyToTest });
+      refreshModels(true, keyToTest);
     } else {
       setTestResult({
         success: false,
@@ -289,7 +305,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 
   const handleModelChange = (modelId: string) => {
     setSelectedModel(modelId);
-    onUpdateSettings({ model: modelId });
+    const nextThinking =
+      state.settings.thinkingLevel === 'XHIGH' && modelId !== 'gemini-4-hydrogen'
+        ? 'HIGH'
+        : state.settings.thinkingLevel;
+    onUpdateSettings({ model: modelId, thinkingLevel: nextThinking });
   };
 
   // Google Drive & Auth
@@ -675,11 +695,11 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 onChange={(e) => handleHexChange(e.target.value)}
                 maxLength={6}
                 className="w-16 bg-transparent text-xs font-mono font-bold text-[#f3f4f6] focus:outline-none uppercase"
-                placeholder="22C55E"
+                placeholder="15803D"
               />
               <span
                 className="w-4 h-4 rounded shrink-0 border border-white/20"
-                style={{ backgroundColor: `#${hexInput || '22C55E'}` }}
+                style={{ backgroundColor: `#${hexInput || '15803D'}` }}
               />
             </div>
           </div>
@@ -724,14 +744,14 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         {showByokExplainer && (
           <div className="p-4 rounded-xl bg-purple-950/30 border border-purple-500/30 text-purple-200 text-xs space-y-2 animate-in fade-in duration-200">
             <div className="flex items-center justify-between">
-              <span className="font-extrabold text-white flex items-center gap-1.5">
+              <span className="font-extrabold text-[#e8e8f0] flex items-center gap-1.5">
                 <HelpCircle className="w-4 h-4 text-purple-400" />
                 <span>{lang === 'ar' ? 'ما معنى نموذج BYOK (أحضر مفتاحك الخاص)؟' : 'What is BYOK (Bring Your Own Key)?'}</span>
               </span>
               <button
                 type="button"
                 onClick={() => setShowByokExplainer(false)}
-                className="text-purple-400 hover:text-white text-xs font-bold"
+                className="text-purple-400 hover:text-[#e8e8f0] text-xs font-bold"
               >
                 ✕
               </button>
@@ -761,62 +781,149 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             : 'Enter your personal Google Gemini API key to power flashcard generation and smart quizzes. Your key is stored securely in your browser and synced with your Google Drive backup.'}
         </p>
 
-        {/* Real Model Selector */}
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-[#f3f4f6] flex items-center gap-1.5">
-            <Cpu className="w-3.5 h-3.5" style={{ color: primaryColor }} />
-            <span>{t('model', lang)}</span>
-          </label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-            {[
-              {
-                id: 'gemini-3.8-flash',
-                name: 'Gemini 3.8 Flash',
-                desc: lang === 'ar' ? 'أحدث جيل فائق السرعة (موصى به)' : 'Latest & Recommended',
-              },
-              {
-                id: 'gemini-4-argon',
-                name: 'Gemini 4 Argon',
-                desc: lang === 'ar' ? 'تفكير عميق ودقة فائقة' : 'Deep Reasoning & Accuracy',
-              },
-              {
-                id: 'gemini-3.1-flash-lite',
-                name: 'Gemini 3.1 Flash Lite',
-                desc: lang === 'ar' ? 'خفيف وسريع جداً' : 'Lightweight & Ultra Fast',
-              },
-            ].map((m) => {
+        {/* Real Model Selector (Auto-Synced from Google Gemini API) */}
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label className="text-xs font-bold text-[#f3f4f6] flex items-center gap-1.5">
+              <Cpu className="w-3.5 h-3.5" style={{ color: primaryColor }} />
+              <span>{t('model', lang)}</span>
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-[#8c909e]">
+                {modelSyncMeta.isLive
+                  ? lang === 'ar'
+                    ? `محدّث تلقائياً · ${liveModels.length} نماذج`
+                    : `Auto-synced · ${liveModels.length} models`
+                  : lang === 'ar'
+                  ? 'يتحدث تلقائياً عند تفعيل المفتاح'
+                  : 'Syncs live with Google API'}
+              </span>
+              {apiKeyInput.trim() && (
+                <button
+                  type="button"
+                  disabled={isSyncingModels}
+                  onClick={() => refreshModels(true, apiKeyInput.trim())}
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-[#121318] border border-[#20222a] hover:border-[#2e303c] text-[10px] font-bold text-[#e8e8f0] disabled:opacity-50 transition-colors"
+                  title={lang === 'ar' ? 'تحديث قائمة النماذج من Google الآن' : 'Refresh live models from Google'}
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSyncingModels ? 'animate-spin' : ''}`} />
+                  <span>{lang === 'ar' ? 'تحديث' : 'Sync'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            {liveModels.map((m) => {
               const isSelected = selectedModel === m.id;
+              const badgeLabel =
+                m.badge === 'new'
+                  ? lang === 'ar'
+                    ? 'جديد'
+                    : 'New'
+                  : m.badge === 'paid'
+                  ? lang === 'ar'
+                    ? 'مدفوع'
+                    : 'Paid'
+                  : m.badge === 'latest'
+                  ? lang === 'ar'
+                    ? 'محدّث'
+                    : 'Latest'
+                  : m.badge === 'fast'
+                  ? lang === 'ar'
+                    ? 'سريع'
+                    : 'Fast'
+                  : null;
+
               return (
                 <button
                   type="button"
                   key={m.id}
                   onClick={() => handleModelChange(m.id)}
-                  className={`p-3 rounded-xl border text-start transition-all ${
+                  className={`p-3 rounded-xl border text-start transition-all flex flex-col justify-between gap-1 ${
                     isSelected
-                      ? 'bg-[#12131a] border-emerald-500/40 shadow-sm'
+                      ? 'bg-emerald-500/10 border-emerald-500/40 shadow-sm'
                       : 'bg-[#121318] border-[#20222a] hover:border-[#2e303c]'
                   }`}
                 >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-[#f3f4f6]">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span className="text-xs font-bold text-[#f3f4f6] leading-tight">
                       {m.name}
                     </span>
-                    {isSelected && (
+                    {isSelected ? (
                       <span
-                        className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white"
+                        className="text-[9px] font-bold px-1.5 py-0.5 rounded text-white shrink-0"
                         style={{ backgroundColor: primaryColor }}
                       >
                         {t('activeBadge', lang)}
                       </span>
+                    ) : (
+                      badgeLabel && (
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded shrink-0 ${
+                            m.badge === 'paid'
+                              ? 'bg-sky-500/15 text-sky-300'
+                              : m.badge === 'new'
+                              ? 'bg-emerald-500/15 text-emerald-300'
+                              : 'bg-[#1c1c3a] text-[#8c909e]'
+                          }`}
+                        >
+                          {badgeLabel}
+                        </span>
+                      )
                     )}
                   </div>
-                  <span className="text-[10px] text-[#8c909e] block mt-0.5">
-                    {m.desc}
+                  <span className="text-[10px] text-[#8c909e] leading-snug">
+                    {lang === 'ar' ? m.descAr : m.descEn}
                   </span>
                 </button>
               );
             })}
           </div>
+
+          {isGemini4Model(selectedModel) && (
+            <div className="p-3 rounded-xl bg-[#121318] border border-[#20222a] flex flex-wrap items-center justify-between gap-2">
+              <div className="space-y-0.5">
+                <span className="text-xs font-bold text-[#f3f4f6] block">
+                  {lang === 'ar' ? 'عمق التفكير (Gemini 4)' : 'Reasoning Depth (Gemini 4)'}
+                </span>
+                <span className="text-[10px] text-[#8c909e] block">
+                  {lang === 'ar'
+                    ? 'تحكّم بمستوى التحليل دون تمرير معاملات قديمة'
+                    : 'Controls Gemini 4 thinkingLevel cleanly'}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {(
+                  [
+                    { val: undefined, label: lang === 'ar' ? 'تلقائي' : 'Auto' },
+                    { val: 'LOW', label: lang === 'ar' ? 'سريع' : 'Low' },
+                    { val: 'MEDIUM', label: lang === 'ar' ? 'متوازن' : 'Medium' },
+                    { val: 'HIGH', label: lang === 'ar' ? 'عميق' : 'High' },
+                    ...(selectedModel === 'gemini-4-hydrogen'
+                      ? [{ val: 'XHIGH', label: lang === 'ar' ? 'أقصى عمق' : 'XHigh' }]
+                      : []),
+                  ] as Array<{ val: ThinkingLevelOption | undefined; label: string }>
+                ).map((lvl) => {
+                  const active = (state.settings.thinkingLevel || undefined) === lvl.val;
+                  return (
+                    <button
+                      key={lvl.label}
+                      type="button"
+                      onClick={() => onUpdateSettings({ thinkingLevel: lvl.val })}
+                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition-all ${
+                        active
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-[#1c1c3a] text-[#8c909e] hover:text-white border border-[#20222a]'
+                      }`}
+                    >
+                      {lvl.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Gemini API Key Input */}
@@ -1003,7 +1110,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               type="button"
               disabled={isConnectingGoogle}
               onClick={handleConnectGoogle}
-              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-800 bg-white hover:bg-slate-100 transition-all shadow-md flex items-center gap-2 active:scale-95 disabled:opacity-50"
+              className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 transition-all shadow-md flex items-center gap-2 active:scale-95 disabled:opacity-50"
             >
               {isConnectingGoogle ? (
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-slate-800" />

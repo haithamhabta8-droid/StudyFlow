@@ -2,62 +2,163 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --bg: #0a0a1a;
-  --surface: #12122a;
-  --surface-2: #1c1c3a;
-  --surface-3: #242448;
-  --border: #2a2a4a;
-  --text: #e8e8f0;
-  --text-muted: #8888a8;
-  --text-dim: #5a5a78;
-  --primary: #10b981;
-  --primary-glow: rgba(16, 185, 129, 0.35);
-  --accent: #00d4aa;
-  --accent-glow: rgba(0, 212, 170, 0.2);
-  --danger: #ff4d6a;
-  --warning: #ffb347;
-  --info: #4da6ff;
-  --radius: 16px;
-  --radius-sm: 10px;
-  --capsule-bg: rgba(136, 136, 168, 0.12);
-  --capsule-border: rgba(136, 136, 168, 0.2);
+  --bg: #0e1014;
+  --surface: #15181e;
+  --surface-2: #1c2028;
+  --surface-3: #242934;
+  --border: #262b36;
+  --text: #eceff4;
+  --text-muted: #9199aa;
+  --text-dim: #616a7c;
+  --primary: #15803d;
+  --primary-glow: rgba(21, 128, 61, 0.14);
+  --accent: #14b8a6;
+  --accent-glow: rgba(20, 184, 166, 0.12);
+  --danger: #ef4444;
+  --warning: #f59e0b;
+  --info: #3b82f6;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --capsule-bg: rgba(145, 153, 170, 0.1);
+  --capsule-border: rgba(145, 153, 170, 0.18);
+  --app-font-family: system-ui, -apple-system, 'Segoe UI Variable', 'Segoe UI', 'Tajawal', 'Inter', sans-serif;
+  --font-sans: var(--app-font-family);
+}
+
+/* Neutral Graphite Dark Surfaces (eliminates indigo-purple tint across default dark mode) */
+html:not(.light):not(.black) .bg-\[\#0a0a1a\] {
+  background-color: var(--bg) !important;
+}
+html:not(.light):not(.black) .bg-\[\#0a0a1a\]\/85,
+html:not(.light):not(.black) .bg-\[\#0a0a1a\]\/80,
+html:not(.light):not(.black) .bg-\[\#0a0a1a\]\/90,
+html:not(.light):not(.black) .bg-\[\#0a0a1a\]\/95 {
+  background-color: rgba(14, 16, 20, 0.88) !important;
+}
+html:not(.light):not(.black) .bg-\[\#12122a\] {
+  background-color: var(--surface) !important;
+}
+html:not(.light):not(.black) .bg-\[\#12122a\]\/50 {
+  background-color: rgba(21, 24, 30, 0.65) !important;
+}
+html:not(.light):not(.black) .bg-\[\#1c1c3a\],
+html:not(.light):not(.black) .bg-\[\#161632\] {
+  background-color: var(--surface-2) !important;
+}
+html:not(.light):not(.black) .bg-\[\#1c1c3a\]\/70 {
+  background-color: rgba(28, 32, 40, 0.7) !important;
+}
+html:not(.light):not(.black) .bg-\[\#242448\],
+html:not(.light):not(.black) .hover\:bg-\[\#1c1c3a\]:hover,
+html:not(.light):not(.black) .hover\:bg-\[\#242448\]:hover {
+  background-color: var(--surface-3) !important;
+}
+html:not(.light):not(.black) .border-\[\#2a2a4a\] {
+  border-color: var(--border) !important;
+}
+html:not(.light):not(.black) .border-\[\#2a2a4a\]\/40,
+html:not(.light):not(.black) .border-\[\#2a2a4a\]\/50,
+html:not(.light):not(.black) .border-\[\#2a2a4a\]\/60,
+html:not(.light):not(.black) .border-\[\#2a2a4a\]\/70,
+html:not(.light):not(.black) .border-\[\#2a2a4a\]\/80 {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+html:not(.light):not(.black) .text-\[\#e8e8f0\] {
+  color: var(--text) !important;
+}
+html:not(.light):not(.black) .text-\[\#8888a8\] {
+  color: var(--text-muted) !important;
+}
+html:not(.light):not(.black) .text-\[\#5a5a78\] {
+  color: var(--text-dim) !important;
+}
+html:not(.light):not(.black) .ring-offset-\[\#0a0a16\] {
+  --tw-ring-offset-color: var(--bg) !important;
+}
+
+/* Responsive Root Scaling (Bigger in both languages, larger in Arabic, scales all rem-based UI proportionally) */
+html,
+html[dir="ltr"] {
+  font-size: 16.5px;
+}
+
+html[dir="rtl"] {
+  font-size: 18px;
+}
+
+@media (min-width: 640px) {
+  html,
+  html[dir="ltr"] {
+    font-size: 18px;
+  }
+
+  html[dir="rtl"] {
+    font-size: 20px;
+  }
+}
+
+@media (min-width: 1920px) {
+  html,
+  html[dir="ltr"] {
+    font-size: 19.5px;
+  }
+
+  html[dir="rtl"] {
+    font-size: 21.5px;
+  }
 }
 
 /* Light Theme Variables */
 html.light {
-  --bg: #f8fafc;
+  --bg: #f1f5f9;
   --surface: #ffffff;
-  --surface-2: #f1f5f9;
+  --surface-2: #f8fafc;
   --surface-3: #e2e8f0;
   --border: #e2e8f0;
   --text: #0f172a;
   --text-muted: #475569;
   --text-dim: #64748b;
-  --capsule-bg: rgba(15, 23, 42, 0.06);
+  --capsule-bg: rgba(15, 23, 42, 0.05);
   --capsule-border: rgba(15, 23, 42, 0.12);
+  --primary-light-bg: color-mix(in srgb, var(--primary) 11%, #ffffff);
+  --primary-light-bg-hover: color-mix(in srgb, var(--primary) 18%, #ffffff);
+  --primary-light-border: color-mix(in srgb, var(--primary) 34%, #ffffff);
+  --primary-light-text: color-mix(in srgb, var(--primary) 72%, #0f172a);
 }
 
 /* Light Theme Adaptive Mappings for Backgrounds */
-html.light .bg-\[\#0a0a1a\],
+html.light .bg-\[\#0a0a1a\] {
+  background-color: #f1f5f9 !important;
+}
+
 html.light .bg-\[\#0a0a1a\]\/85,
 html.light .bg-\[\#0a0a1a\]\/80,
-html.light .bg-\[\#0a0a1a\]\/90 {
-  background-color: rgba(255, 255, 255, 0.92) !important;
+html.light .bg-\[\#0a0a1a\]\/90,
+html.light .bg-\[\#0a0a1a\]\/95 {
+  background-color: rgba(255, 255, 255, 0.90) !important;
 }
 
 html.light .bg-\[\#0b0c10\],
-html.light .bg-\[\#12122a\] {
+html.light .bg-\[\#0e0e22\],
+html.light .bg-\[\#12122a\],
+html.light .bg-\[\#12131a\] {
   background-color: #ffffff !important;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.06), 0 1px 2px -1px rgba(15, 23, 42, 0.04) !important;
+}
+
+html.light .bg-\[\#12122a\]\/50 {
+  background-color: rgba(255, 255, 255, 0.72) !important;
 }
 
 html.light aside.bg-\[\#12122a\] {
   background-color: #ffffff !important;
-  box-shadow: 2px 0 12px 0 rgba(0, 0, 0, 0.04) !important;
+  box-shadow: 2px 0 16px 0 rgba(15, 23, 42, 0.05) !important;
 }
 
 html.light .bg-\[\#121318\],
-html.light .bg-\[\#1c1c3a\] {
+html.light .bg-\[\#161632\],
+html.light .bg-\[\#1c1c3a\],
+html.light .bg-\[\#1c1c3a\]\/70 {
   background-color: #f1f5f9 !important;
 }
 
@@ -78,8 +179,30 @@ html.light select option {
 }
 
 html.light .bg-\[\#242448\],
-html.light .bg-\[\#20222a\] {
+html.light .bg-\[\#20222a\],
+html.light .bg-\[\#2a2a4a\],
+html.light .bg-\[\#3a3c4a\],
+html.light .hover\:bg-\[\#1c1c3a\]:hover,
+html.light .hover\:bg-\[\#1c1c3a\]\/70:hover,
+html.light .hover\:bg-\[\#242448\]:hover,
+html.light .hover\:bg-\[\#2a2a4a\]:hover {
   background-color: #e2e8f0 !important;
+}
+
+html.light .from-\[\#1a1a3a\] {
+  --tw-gradient-from: #ffffff !important;
+}
+
+html.light .to-\[\#251f44\] {
+  --tw-gradient-to: #f1f5f9 !important;
+}
+
+html.light .ring-offset-\[\#0a0a16\] {
+  --tw-ring-offset-color: #f1f5f9 !important;
+}
+
+html.light .ring-white {
+  --tw-ring-color: #0f172a !important;
 }
 
 /* Light Theme Adaptive Borders */
@@ -88,75 +211,56 @@ html.light .border-\[\#20222a\],
 html.light .border-\[\#2a2a4a\],
 html.light .border-\[\#2a2a4a\]\/40,
 html.light .border-\[\#2a2a4a\]\/50,
-html.light .border-\[\#2a2a4a\]\/80 {
+html.light .border-\[\#2a2a4a\]\/60,
+html.light .border-\[\#2a2a4a\]\/70,
+html.light .border-\[\#2a2a4a\]\/80,
+html.light .border-\[\#2a2c3a\],
+html.light .border-\[\#3a3a5a\],
+html.light .hover\:border-\[\#2e303c\]:hover {
   border-color: #e2e8f0 !important;
 }
 
 /* Light Theme Adaptive Text Typography */
 html.light .text-\[\#e8e8f0\],
-html.light .text-\[\#f3f4f6\] {
+html.light .text-\[\#f3f4f6\],
+html.light .hover\:text-\[\#e8e8f0\]:hover,
+html.light .hover\:text-\[\#f3f4f6\]:hover {
   color: #0f172a !important;
 }
 
 html.light .text-\[\#8888a8\],
-html.light .text-\[\#8c909e\] {
+html.light .text-\[\#8c909e\],
+html.light .text-\[\#a0a5b8\],
+html.light .text-\[\#b8b8d0\] {
   color: #475569 !important;
 }
 
-html.light .text-\[\#5a5a78\] {
+html.light .text-\[\#5a5a78\],
+html.light .text-\[\#80859a\],
+html.light .hover\:text-\[\#8888a8\]:hover {
   color: #64748b !important;
 }
 
-/* Light Theme Brand & Accent Contrast Fixes */
-html.light .text-purple-300 {
-  color: #6d28d9 !important;
-  font-weight: 700 !important;
+html.light .hover\:text-white:not(.bg-purple-600):not(.bg-purple-500):not(.bg-emerald-600):not(.bg-emerald-500):not(.bg-emerald-700):not(.bg-rose-600):not(.bg-rose-500):hover {
+  color: #0f172a !important;
 }
 
-html.light .text-purple-400 {
-  color: #7c3aed !important;
-}
-
-html.light .bg-purple-600\/20 {
-  background-color: rgba(124, 58, 237, 0.1) !important;
-}
-
-html.light .border-purple-500\/30,
-html.light .border-purple-500\/40 {
-  border-color: rgba(124, 58, 237, 0.28) !important;
-}
-
-html.light .text-teal-300 {
-  color: #0f766e !important;
-  font-weight: 700 !important;
-}
-
-html.light .text-teal-400 {
-  color: #0d9488 !important;
-}
-
-html.light .bg-teal-500\/20 {
-  background-color: rgba(13, 148, 136, 0.1) !important;
-}
-
-html.light .border-teal-500\/30 {
-  border-color: rgba(13, 148, 136, 0.28) !important;
-}
-
+html.light .shadow-2xl,
+html.light .shadow-xl,
 html.light .shadow-lg {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.05) !important;
+  box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.08), 0 4px 10px -4px rgba(15, 23, 42, 0.04) !important;
 }
 
 /* OLED Black Mode */
 html.black {
   --bg: #000000;
   --surface: #0a0a0d;
-  --surface-2: #111116;
-  --surface-3: #17181f;
-  --border: #1d1e26;
+  --surface-2: #121318;
+  --surface-3: #181a22;
+  --border: #1e2029;
   --text: #f3f4f6;
   --text-muted: #9194a3;
-  --text-dim: #565969;
+  --text-dim: #5e6273;
   --capsule-bg: rgba(255, 255, 255, 0.05);
   --capsule-border: rgba(255, 255, 255, 0.1);
 }
@@ -164,13 +268,29 @@ html.black {
 html.black .bg-\[\#0a0a1a\] {
   background-color: var(--bg) !important;
 }
+html.black .bg-\[\#0a0a1a\]\/85,
+html.black .bg-\[\#0a0a1a\]\/80,
+html.black .bg-\[\#0a0a1a\]\/90,
+html.black .bg-\[\#0a0a1a\]\/95 {
+  background-color: rgba(0, 0, 0, 0.9) !important;
+}
 html.black .bg-\[\#12122a\] {
   background-color: var(--surface) !important;
 }
-html.black .bg-\[\#1c1c3a\] {
+html.black .bg-\[\#12122a\]\/50 {
+  background-color: rgba(10, 10, 13, 0.72) !important;
+}
+html.black .bg-\[\#1c1c3a\],
+html.black .bg-\[\#161632\] {
   background-color: var(--surface-2) !important;
 }
-html.black .bg-\[\#242448\] {
+html.black .bg-\[\#1c1c3a\]\/70 {
+  background-color: rgba(18, 19, 24, 0.72) !important;
+}
+html.black .bg-\[\#242448\],
+html.black .hover\:bg-\[\#1c1c3a\]:hover,
+html.black .hover\:bg-\[\#1c1c3a\]\/70:hover,
+html.black .hover\:bg-\[\#242448\]:hover {
   background-color: var(--surface-3) !important;
 }
 html.black .border-\[\#2a2a4a\] {
@@ -178,6 +298,8 @@ html.black .border-\[\#2a2a4a\] {
 }
 html.black .border-\[\#2a2a4a\]\/40,
 html.black .border-\[\#2a2a4a\]\/50,
+html.black .border-\[\#2a2a4a\]\/60,
+html.black .border-\[\#2a2a4a\]\/70,
 html.black .border-\[\#2a2a4a\]\/80 {
   border-color: var(--border) !important;
 }
@@ -190,23 +312,29 @@ html.black .text-\[\#8888a8\] {
 html.black .text-\[\#5a5a78\] {
   color: var(--text-dim) !important;
 }
+html.black .ring-offset-\[\#0a0a16\] {
+  --tw-ring-offset-color: var(--bg) !important;
+}
 
 * {
   box-sizing: border-box;
 }
 
+body,
+button,
+input,
+textarea,
+select {
+  font-family: var(--app-font-family);
+}
+
 body {
-  font-family: 'Tajawal', 'Inter', system-ui, -apple-system, sans-serif;
   background-color: var(--bg);
   color: var(--text);
   min-height: 100vh;
   transition: background-color 0.25s ease, color 0.25s ease;
   overflow-x: hidden;
   -webkit-tap-highlight-color: transparent;
-}
-
-html[dir="ltr"] body {
-  font-family: 'Inter', 'Tajawal', system-ui, -apple-system, sans-serif;
 }
 
 /* Custom subtle scrollbars */
@@ -302,18 +430,29 @@ svg.text-purple-400 {
   color: var(--primary) !important;
 }
 
-/* Page Smooth Fade-In Animation (opacity only so fixed modals/sidebar stay anchored to viewport) */
+/* Page Smooth Fade-In Animation (compositor opacity-only for 160Hz/160fps smoothness while keeping fixed modals/sidebar anchored to viewport) */
 @keyframes pageFadeIn {
-  from {
+  0% {
     opacity: 0;
   }
-  to {
+  8% {
+    opacity: 0;
+  }
+  100% {
     opacity: 1;
   }
 }
 
 .animate-page-fade {
-  animation: pageFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: pageFadeIn 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-page-fade {
+    animation: none;
+    will-change: auto;
+  }
 }
 
 .hover\:text-purple-300:hover,
@@ -325,53 +464,59 @@ svg.text-purple-400 {
 
 .border-purple-500,
 .border-purple-600,
+.border-emerald-500,
+.border-emerald-600 {
+  border-color: var(--primary) !important;
+}
+
+.border-purple-500\/30,
+.border-emerald-500\/30,
+.hover\:border-emerald-500\/30:hover,
+.hover\:border-purple-500\/30:hover {
+  border-color: color-mix(in srgb, var(--primary) 26%, transparent) !important;
+}
+
 .border-purple-500\/40,
 .border-purple-500\/50,
-.border-purple-500\/30,
-.border-emerald-500,
-.border-emerald-600,
-.border-emerald-500\/30,
 .border-emerald-500\/40,
 .border-emerald-500\/50,
-.border-emerald-600\/60 {
-  border-color: var(--primary) !important;
-}
-
-.hover\:border-purple-500\/30:hover,
-.hover\:border-purple-500\/40:hover,
-.hover\:border-purple-500:hover,
-.hover\:border-emerald-500\/30:hover,
+.border-emerald-600\/60,
 .hover\:border-emerald-500\/40:hover,
 .hover\:border-emerald-500\/50:hover,
-.hover\:border-emerald-500:hover {
-  border-color: var(--primary) !important;
+.hover\:border-purple-500\/40:hover {
+  border-color: color-mix(in srgb, var(--primary) 42%, transparent) !important;
 }
 
+.hover\:border-purple-500:hover,
+.hover\:border-emerald-500:hover,
 .focus\:border-purple-500:focus,
 .focus\:border-purple-400:focus,
 .focus\:border-emerald-500:focus,
 .focus\:border-emerald-400:focus {
-  border-color: var(--primary) !important;
+  border-color: color-mix(in srgb, var(--primary) 72%, transparent) !important;
 }
 
 .ring-emerald-500,
 .ring-emerald-400 {
-  --tw-ring-color: var(--primary) !important;
+  --tw-ring-color: color-mix(in srgb, var(--primary) 70%, transparent) !important;
 }
 
 .bg-purple-500\/10,
 .bg-purple-600\/10,
+.bg-emerald-500\/10,
+.bg-emerald-600\/10,
+.bg-emerald-950\/20,
+.bg-emerald-950\/40,
+.bg-purple-950\/40 {
+  background-color: color-mix(in srgb, var(--primary) 10%, transparent) !important;
+}
+
 .bg-purple-600\/15,
 .bg-purple-600\/20,
-.bg-purple-950\/40,
-.bg-emerald-500\/10,
 .bg-emerald-500\/15,
-.bg-emerald-600\/10,
 .bg-emerald-600\/15,
-.bg-emerald-600\/20,
-.bg-emerald-950\/20,
-.bg-emerald-950\/40 {
-  background-color: var(--primary-glow) !important;
+.bg-emerald-600\/20 {
+  background-color: color-mix(in srgb, var(--primary) 14%, transparent) !important;
 }
 
 .shadow-purple-600\/30,
@@ -382,7 +527,7 @@ svg.text-purple-400 {
 .shadow-emerald-900\/20,
 .shadow-emerald-950\/40,
 .shadow-emerald-500\/50 {
-  box-shadow: 0 4px 14px 0 var(--primary-glow) !important;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.24) !important;
 }
 
 .stroke-purple-400,
@@ -398,6 +543,161 @@ svg.text-purple-400 {
 .fill-emerald-500 {
   fill: var(--primary) !important;
 }
+
+/* Light Theme Dynamic Accent & Semantic Contrast Overrides */
+html.light .bg-purple-500\/10,
+html.light .bg-purple-500\/15,
+html.light .bg-purple-600\/10,
+html.light .bg-purple-600\/15,
+html.light .bg-purple-600\/20,
+html.light .bg-purple-950\/30,
+html.light .bg-purple-950\/40,
+html.light .bg-emerald-500\/5,
+html.light .bg-emerald-500\/10,
+html.light .bg-emerald-500\/15,
+html.light .bg-emerald-500\/20,
+html.light .bg-emerald-600\/10,
+html.light .bg-emerald-600\/15,
+html.light .bg-emerald-600\/20,
+html.light .bg-emerald-600\/40,
+html.light .bg-emerald-950\/15,
+html.light .bg-emerald-950\/20,
+html.light .bg-emerald-950\/40 {
+  background-color: var(--primary-light-bg) !important;
+}
+
+html.light .hover\:bg-emerald-600\/15:hover,
+html.light .hover\:bg-emerald-600\/25:hover,
+html.light .hover\:bg-emerald-600\/30:hover,
+html.light .hover\:bg-emerald-500\/25:hover,
+html.light .hover\:bg-purple-600\/20:hover,
+html.light .hover\:bg-purple-500\/30:hover {
+  background-color: var(--primary-light-bg-hover) !important;
+}
+
+html.light .border-purple-400\/40,
+html.light .border-purple-500\/20,
+html.light .border-purple-500\/30,
+html.light .border-purple-500\/40,
+html.light .border-purple-500\/50,
+html.light .border-emerald-500\/20,
+html.light .border-emerald-500\/30,
+html.light .border-emerald-500\/40,
+html.light .border-emerald-500\/50,
+html.light .border-emerald-500\/60,
+html.light .border-emerald-500\/70,
+html.light .border-emerald-600\/60 {
+  border-color: var(--primary-light-border) !important;
+}
+
+html.light .text-purple-200,
+html.light .text-purple-200\/80,
+html.light .text-purple-200\/90,
+html.light .text-purple-300,
+html.light .text-purple-400,
+html.light span.text-purple-400,
+html.light span.text-purple-300,
+html.light div.text-purple-400,
+html.light p.text-purple-400,
+html.light svg.text-purple-400,
+html.light .text-emerald-200,
+html.light .text-emerald-300,
+html.light .text-emerald-400,
+html.light .text-emerald-400\/80,
+html.light span.text-emerald-400,
+html.light span.text-emerald-300,
+html.light div.text-emerald-400,
+html.light p.text-emerald-400,
+html.light svg.text-emerald-400 {
+  color: var(--primary-light-text) !important;
+}
+
+html.light .hover\:text-purple-300:hover,
+html.light .hover\:text-purple-400:hover,
+html.light .hover\:text-emerald-300:hover,
+html.light .hover\:text-emerald-400:hover {
+  color: var(--primary-light-text) !important;
+}
+
+/* Keep solid filled primary buttons crisp white on light mode too */
+html.light button.bg-purple-600,
+html.light button.bg-purple-500,
+html.light button.bg-emerald-600,
+html.light button.bg-emerald-500,
+html.light button.bg-emerald-700,
+html.light button.bg-purple-600 *,
+html.light button.bg-purple-500 *,
+html.light button.bg-emerald-600 *,
+html.light button.bg-emerald-500 *,
+html.light button.bg-emerald-700 * {
+  color: #ffffff !important;
+}
+
+html.light .shadow-purple-600\/30,
+html.light .shadow-purple-600\/25,
+html.light .shadow-purple-900\/20,
+html.light .shadow-emerald-600\/30,
+html.light .shadow-emerald-600\/25,
+html.light .shadow-emerald-900\/20,
+html.light .shadow-emerald-950\/40,
+html.light .shadow-emerald-500\/50 {
+  box-shadow: 0 4px 12px 0 color-mix(in srgb, var(--primary) 22%, transparent) !important;
+}
+
+/* Semantic Status Colors in Light Mode (Amber / Teal / Rose) */
+html.light .bg-amber-500\/10,
+html.light .bg-amber-500\/15 {
+  background-color: #fffbeb !important;
+}
+html.light .border-amber-500\/20,
+html.light .border-amber-500\/25,
+html.light .border-amber-500\/30,
+html.light .border-amber-500\/50 {
+  border-color: #fde68a !important;
+}
+html.light .text-amber-200,
+html.light .text-amber-200\/80,
+html.light .text-amber-300,
+html.light .text-amber-400 {
+  color: #b45309 !important;
+}
+
+html.light .bg-teal-500\/10,
+html.light .bg-teal-500\/20 {
+  background-color: #f0fdfa !important;
+}
+html.light .border-teal-500\/20,
+html.light .border-teal-500\/30,
+html.light .border-teal-500\/40 {
+  border-color: #99f6e4 !important;
+}
+html.light .text-teal-300,
+html.light .text-teal-400 {
+  color: #0f766e !important;
+}
+
+html.light .bg-rose-500\/10,
+html.light .bg-rose-500\/15,
+html.light .bg-rose-500\/20,
+html.light .bg-rose-600\/15,
+html.light .bg-rose-950\/60 {
+  background-color: #fff1f2 !important;
+}
+html.light .border-rose-500\/20,
+html.light .border-rose-500\/25,
+html.light .border-rose-500\/30,
+html.light .border-rose-500\/40,
+html.light .border-rose-500\/60 {
+  border-color: #fecdd3 !important;
+}
+html.light .text-rose-300,
+html.light .text-rose-300\/90,
+html.light .text-rose-400,
+html.light .text-rose-400\/80,
+html.light .text-rose-500 {
+  color: #be123c !important;
+}
+
 
 /* Interactive Tutorial Spotlight & Beacon */
 @keyframes tourPulse {
@@ -422,11 +722,20 @@ svg.text-purple-400 {
   transition: all 0.3s ease !important;
 }
 
-/* Responsive Monitor Sizing & Global Interactive Polish */
-@media (min-width: 1920px) {
-  body {
-    font-size: clamp(14px, 0.9vw, 18px);
-  }
+/* Scale hardcoded micro pixel labels in rem so they stay legible with root font scaling */
+.text-\[9px\] {
+  font-size: 0.625rem !important;
+  line-height: 1.35 !important;
+}
+
+.text-\[10px\] {
+  font-size: 0.7rem !important;
+  line-height: 1.4 !important;
+}
+
+.text-\[11px\] {
+  font-size: 0.75rem !important;
+  line-height: 1.45 !important;
 }
 
 button, a, [role="button"] {
@@ -445,6 +754,7 @@ body.is-dragging *,
 body.is-dragging [role="button"],
 body.is-dragging button {
   cursor: grabbing !important;
+  touch-action: none !important;
 }
 
 

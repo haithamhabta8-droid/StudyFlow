@@ -36,6 +36,7 @@ import {
   saveAppState,
   getDefaultState,
   importAppState,
+  clearAllLocalStorageAndCookies,
 } from './utils/storage.ts';
 import {
   uploadBackupToDrive,
@@ -47,6 +48,7 @@ import {
 import { calculateStreak, calculateCardStats, getQualifiedStreakDates } from './utils/calculations.ts';
 import { playChime } from './utils/audio.ts';
 import { t } from './utils/translations.ts';
+import { applyAdaptiveUserFont } from './utils/font.ts';
 import { User, Award, Layers, Clock } from 'lucide-react';
 
 // URL Hash routing parser
@@ -225,7 +227,17 @@ export default function App() {
 
   // Sync state to localStorage immediately, and auto-sync to Google Drive appDataFolder
   const autoSyncTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const skipNextSaveRef = useRef(false);
   useEffect(() => {
+    if (skipNextSaveRef.current) {
+      skipNextSaveRef.current = false;
+      if (autoSyncTimerRef.current) {
+        clearTimeout(autoSyncTimerRef.current);
+        autoSyncTimerRef.current = null;
+      }
+      return;
+    }
+
     saveAppState(state);
 
     if (state.profile?.signedIn) {
@@ -273,22 +285,23 @@ export default function App() {
 
   // Sync theme, direction, and primary accent color
   useEffect(() => {
-    const theme = state.settings.theme || 'dark';
+    const theme = state.settings.theme || 'black';
     document.documentElement.classList.remove('dark', 'light', 'black');
     document.documentElement.classList.add(theme);
 
     const isRTL = state.settings.lang === 'ar';
     document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', state.settings.lang);
+    applyAdaptiveUserFont();
 
-    const primary = state.settings.primaryColor || '#10b981';
+    const primary = state.settings.primaryColor || '#15803D';
     document.documentElement.style.setProperty('--primary', primary);
-    const r = parseInt(primary.slice(1, 3), 16) || 16;
-    const g = parseInt(primary.slice(3, 5), 16) || 185;
-    const b = parseInt(primary.slice(5, 7), 16) || 129;
+    const r = parseInt(primary.slice(1, 3), 16) || 21;
+    const g = parseInt(primary.slice(3, 5), 16) || 128;
+    const b = parseInt(primary.slice(5, 7), 16) || 61;
     document.documentElement.style.setProperty(
       '--primary-glow',
-      `rgba(${r}, ${g}, ${b}, 0.35)`
+      `rgba(${r}, ${g}, ${b}, 0.28)`
     );
   }, [state.settings.theme, state.settings.lang, state.settings.primaryColor]);
 
@@ -752,11 +765,27 @@ export default function App() {
     }
   };
 
-  const handleResetAll = () => {
-    localStorage.removeItem('studyFlow_v14');
-    setState(getDefaultState());
-    setCurrentCatId(null);
-    setCurrentTab('home');
+  const handleResetAll = (options?: { preserveTab?: boolean; wipeAll?: boolean }) => {
+    if (autoSyncTimerRef.current) {
+      clearTimeout(autoSyncTimerRef.current);
+      autoSyncTimerRef.current = null;
+    }
+
+    if (options?.wipeAll) {
+      skipNextSaveRef.current = true;
+      clearAllLocalStorageAndCookies();
+    } else {
+      localStorage.removeItem('studyFlow_v14');
+    }
+
+    const fresh = getDefaultState();
+    fresh.settings.aiUsageDate = new Date().toISOString().slice(0, 10);
+    setState(fresh);
+
+    if (!options?.preserveTab) {
+      setCurrentCatId(null);
+      setCurrentTab('home');
+    }
   };
 
   const handleImportFile = (file: File) => {
@@ -927,6 +956,17 @@ export default function App() {
               <AskAIView
                 category={currentCategory}
                 lang={state.settings.lang}
+                model={state.settings.model}
+                thinkingLevel={state.settings.thinkingLevel}
+                onChangeModel={(modelId) =>
+                  handleUpdateSettings({
+                    model: modelId,
+                    thinkingLevel:
+                      state.settings.thinkingLevel === 'XHIGH' && modelId !== 'gemini-4-hydrogen'
+                        ? 'HIGH'
+                        : state.settings.thinkingLevel,
+                  })
+                }
                 onOpenSettings={() => {
                   setCurrentCatId(null);
                   setCurrentTab('settings');
@@ -1055,6 +1095,8 @@ export default function App() {
                 <QuizView
                   category={currentCategory}
                   lang={state.settings.lang}
+                  model={state.settings.model}
+                  thinkingLevel={state.settings.thinkingLevel}
                   onUpdateCategory={handleUpdateCategory}
                 />
               )}
@@ -1071,6 +1113,17 @@ export default function App() {
                 <AskAIView
                   category={currentCategory}
                   lang={state.settings.lang}
+                  model={state.settings.model}
+                  thinkingLevel={state.settings.thinkingLevel}
+                  onChangeModel={(modelId) =>
+                    handleUpdateSettings({
+                      model: modelId,
+                      thinkingLevel:
+                        state.settings.thinkingLevel === 'XHIGH' && modelId !== 'gemini-4-hydrogen'
+                          ? 'HIGH'
+                          : state.settings.thinkingLevel,
+                    })
+                  }
                   onOpenSettings={() => {
                     setCurrentCatId(null);
                     setCurrentTab('settings');
@@ -1240,6 +1293,8 @@ export default function App() {
         categories={state.categories}
         currentCatId={currentCatId}
         lang={state.settings.lang}
+        model={state.settings.model}
+        thinkingLevel={state.settings.thinkingLevel}
         onClose={() => setIsGenerateCardsOpen(false)}
         onOpenSettings={() => {
           setCurrentCatId(null);

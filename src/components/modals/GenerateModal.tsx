@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, AlertCircle, ArrowUpRight, FolderPlus, Loader2, BookOpen } from 'lucide-react';
-import { Card, Category } from '../../types/index.ts';
+import { Card, Category, ThinkingLevelOption } from '../../types/index.ts';
 import { t } from '../../utils/translations.ts';
-import { getGeminiApiKey, generateFlashcardsWithAI } from '../../utils/gemini.ts';
+import {
+  DEFAULT_GEMINI_MODEL,
+  getGeminiApiKey,
+  generateFlashcardsWithAI,
+  getModelInfo,
+} from '../../utils/gemini.ts';
+import { useGeminiModels } from '../../hooks/useGeminiModels.ts';
 
 interface GenerateModalProps {
   isOpen: boolean;
   categories: Category[];
   currentCatId: string | null;
   lang: 'ar' | 'en';
+  model?: string;
+  thinkingLevel?: ThinkingLevelOption;
   onClose: () => void;
   onOpenSettings?: () => void;
   onOpenNewCategory?: () => void;
@@ -20,11 +28,14 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
   categories,
   currentCatId,
   lang,
+  model = DEFAULT_GEMINI_MODEL,
+  thinkingLevel,
   onClose,
   onOpenSettings,
   onOpenNewCategory,
   onGenerated,
 }) => {
+  const { models: liveModels } = useGeminiModels(false);
   const [selectedCatId, setSelectedCatId] = useState<string>(
     currentCatId || categories[0]?.id || ''
   );
@@ -49,6 +60,8 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
 
   const apiKey = getGeminiApiKey();
   const hasCategories = categories.length > 0;
+  const activeModelName =
+    liveModels.find((m) => m.id === model)?.name || getModelInfo(model).name;
 
   const handleGenerate = async () => {
     if (!text.trim()) {
@@ -80,7 +93,13 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
 
     if (apiKey) {
       try {
-        const aiCards = await generateFlashcardsWithAI(text, cardCount, lang);
+        const aiCards = await generateFlashcardsWithAI(
+          text,
+          cardCount,
+          lang,
+          model,
+          thinkingLevel
+        );
 
         if (!aiCards || aiCards.length === 0) {
           throw new Error('No flashcards were generated. Please try again with more detailed text.');
@@ -165,8 +184,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
           </div>
         ) : (
           <div className="text-[11px] text-teal-400 font-medium flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
-            <span>Gemini AI Engine Active (gemini-3.8-flash)</span>
+            <span>Gemini AI Engine · {activeModelName}</span>
           </div>
         )}
 

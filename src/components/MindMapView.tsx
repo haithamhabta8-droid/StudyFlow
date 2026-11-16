@@ -175,7 +175,7 @@ export const MindMapView: React.FC<MindMapViewProps> = ({
               style={{
                 left: `${node.x}px`,
                 top: `${node.y}px`,
-                backgroundColor: isRoot ? '#1c1c3a' : '#161632',
+                backgroundColor: isRoot ? 'var(--surface-2)' : 'var(--surface)',
                 border: `2px solid ${node.color || '#7c5cfc'}`,
                 boxShadow: `0 4px 20px ${node.color || '#7c5cfc'}33`,
               }}

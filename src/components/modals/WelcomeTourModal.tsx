@@ -295,7 +295,7 @@ export const WelcomeTourModal: React.FC<WelcomeTourModalProps> = ({
 
         {/* Title & Body Description */}
         <div className="space-y-1.5 text-start">
-          <h3 className="text-lg font-black text-white tracking-tight">
+          <h3 className="text-lg font-black text-[#e8e8f0] tracking-tight">
             {isAr ? currentTourStep.titleAr : currentTourStep.titleEn}
           </h3>
           <p className="text-xs text-[#a0a5b8] leading-relaxed">

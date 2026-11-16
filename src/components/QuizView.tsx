@@ -1,18 +1,22 @@
 import React, { useState } from 'react';
 import { Sparkles, HelpCircle, Check, X, ArrowRight, Award, Trash2, RefreshCw } from 'lucide-react';
-import { Category, Quiz, QuizQuestion } from '../types/index.ts';
+import { Category, Quiz, QuizQuestion, ThinkingLevelOption } from '../types/index.ts';
 import { t } from '../utils/translations.ts';
-import { getGeminiApiKey, generateQuizWithAI } from '../utils/gemini.ts';
+import { DEFAULT_GEMINI_MODEL, getGeminiApiKey, generateQuizWithAI } from '../utils/gemini.ts';
 
 interface QuizViewProps {
   category: Category;
   lang: 'ar' | 'en';
+  model?: string;
+  thinkingLevel?: ThinkingLevelOption;
   onUpdateCategory: (updated: Category) => void;
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({
   category,
   lang,
+  model = DEFAULT_GEMINI_MODEL,
+  thinkingLevel,
   onUpdateCategory,
 }) => {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
@@ -34,7 +38,7 @@ export const QuizView: React.FC<QuizViewProps> = ({
         const studyContext = allCards.length > 0
           ? allCards.slice(0, 10).map((c) => `Q: ${c.q} | A: ${c.a}`).join('\n')
           : `Subject: ${category.name}`;
-        const aiQuestions = await generateQuizWithAI(studyContext, 4, lang);
+        const aiQuestions = await generateQuizWithAI(studyContext, 4, lang, model, thinkingLevel);
         questions = aiQuestions.map((q, idx) => ({
           id: `ai-q-${idx}-${Date.now()}`,
           question: q.question,

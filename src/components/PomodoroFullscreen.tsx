@@ -74,20 +74,20 @@ export const PomodoroFullscreen: React.FC<PomodoroFullscreenProps> = ({
 
         {/* Circular Progress Ring */}
         <div className="relative w-72 h-72 sm:w-80 sm:h-80 flex items-center justify-center">
-          <svg className="w-full h-full transform -rotate-90">
+          <svg viewBox="0 0 320 320" className="w-full h-full transform -rotate-90">
             {/* Background track circle */}
             <circle
-              cx="50%"
-              cy="50%"
+              cx="160"
+              cy="160"
               r="140"
-              stroke="#1c1c3a"
+              stroke="var(--border)"
               strokeWidth="10"
               fill="transparent"
             />
             {/* Animated progress circle */}
             <circle
-              cx="50%"
-              cy="50%"
+              cx="160"
+              cy="160"
               r="140"
               stroke={mode === 'focus' ? 'var(--primary)' : 'var(--accent)'}
               strokeWidth="12"

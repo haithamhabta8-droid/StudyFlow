@@ -107,17 +107,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
             : '-translate-x-full lg:translate-x-0'
         }`}
         style={{
-          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+          boxShadow: 'none',
         }}
       >
         {/* Header */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-[#2a2a4a] shrink-0">
+        <div className="h-15 flex items-center justify-between px-4 border-b border-[#2a2a4a] shrink-0">
           <button
             data-tour="workspace"
             onClick={onGoHome}
-            className="flex items-center gap-3 text-start group focus:outline-none"
+            className="flex items-center gap-2.5 text-start group focus:outline-none"
           >
-            <div className="w-9 h-9 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0 shadow-md shadow-emerald-950/40">
+            <div className="w-8 h-8 rounded-lg bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center text-emerald-400 shrink-0">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -125,16 +125,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-5 h-5 text-emerald-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.35)]"
+                className="w-4 h-4 text-emerald-400"
               >
                 <path d="M2 12l4-8h12l4 8-10 8z" />
               </svg>
             </div>
             <div>
-              <span className="font-extrabold text-base tracking-tight text-[#e8e8f0] block">
+              <span className="font-semibold text-sm tracking-tight text-[#e8e8f0] block leading-tight">
                 StudyFlow
               </span>
-              <span className="text-[10px] text-emerald-400 font-semibold tracking-wider uppercase block">
+              <span className="text-[11px] text-[#5a5a78] font-medium block leading-tight">
                 Workspace
               </span>
             </div>
@@ -145,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onOpenSearch}
               title={t('searchTitle', lang)}
               aria-label={t('searchTitle', lang)}
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] hover:bg-[#1c1c3a] transition-colors"
+              className="w-7 h-7 rounded-md flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] hover:bg-[#1c1c3a] transition-colors"
             >
               <Search className="w-4 h-4" />
             </button>
@@ -153,7 +153,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onToggleCollapseDesktop}
               title="Collapse"
               aria-label="Toggle Sidebar"
-              className="hidden lg:flex w-8 h-8 rounded-lg items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] hover:bg-[#1c1c3a] transition-colors"
+              className="hidden lg:flex w-7 h-7 rounded-md items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] hover:bg-[#1c1c3a] transition-colors"
             >
               {isCollapsedDesktop ? (
                 <PanelLeft className="w-4 h-4" />
@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             data-tour="new-category"
             onClick={onOpenNewCategory}
-            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600/20 via-emerald-600/30 to-teal-500/20 hover:from-emerald-600/30 hover:to-teal-500/30 border border-emerald-500/30 text-[#e8e8f0] font-bold text-sm shadow-md shadow-emerald-900/20 hover:shadow-emerald-700/30 transition-all hover:-translate-y-0.5 active:translate-y-0"
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg bg-[#1c1c3a] hover:bg-[#242448] border border-[#2a2a4a] text-[#e8e8f0] font-medium text-xs transition-colors"
           >
             <FolderPlus className="w-4 h-4 text-emerald-400" />
             <span>{t('newCategory', lang)}</span>
@@ -182,27 +182,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="space-y-1">
             <button
               onClick={onGoHome}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                 currentTab === 'home' && !currentCatId
-                  ? 'bg-emerald-600/20 text-[#8888a8] border border-emerald-500/30'
-                  : 'text-[#8888a8] hover:bg-[#1c1c3a] hover:text-[#e8e8f0]'
+                  ? 'bg-[#1c1c3a] text-[#e8e8f0]'
+                  : 'text-[#8888a8] hover:bg-[#1c1c3a]/70 hover:text-[#e8e8f0]'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4 text-emerald-400 shrink-0" />
-              <span className="flex-1 text-start text-[#8888a8]">{t('home', lang)}</span>
+              <LayoutDashboard
+                className={`w-4 h-4 shrink-0 ${
+                  currentTab === 'home' && !currentCatId ? 'text-emerald-400' : 'text-[#8888a8]'
+                }`}
+              />
+              <span className="flex-1 text-start">{t('home', lang)}</span>
             </button>
 
             {onOpenTimeline && (
               <button
                 onClick={onOpenTimeline}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                   currentTab === 'timeline'
-                    ? 'bg-emerald-600/20 text-[#8888a8] border border-emerald-500/30'
-                    : 'text-[#8888a8] hover:bg-[#1c1c3a] hover:text-[#e8e8f0]'
+                    ? 'bg-[#1c1c3a] text-[#e8e8f0]'
+                    : 'text-[#8888a8] hover:bg-[#1c1c3a]/70 hover:text-[#e8e8f0]'
                 }`}
               >
-                <Calendar className="w-4 h-4 text-emerald-400 shrink-0" />
-                <span className="flex-1 text-start text-[#8888a8]">{lang === 'ar' ? 'الجدول الدراسي' : 'Timetable'}</span>
+                <Calendar
+                  className={`w-4 h-4 shrink-0 ${
+                    currentTab === 'timeline' ? 'text-emerald-400' : 'text-[#8888a8]'
+                  }`}
+                />
+                <span className="flex-1 text-start">{lang === 'ar' ? 'الجدول الدراسي' : 'Timetable'}</span>
               </button>
             )}
           </div>
@@ -226,14 +234,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div
                       key={cat.id}
                       onClick={() => onSelectCategory(cat.id)}
-                      className={`group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-sm font-medium transition-all ${
+                      className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-medium transition-colors ${
                         isActive
-                          ? 'bg-[#1c1c3a] text-white shadow-sm border-s-4'
+                          ? 'bg-[#1c1c3a] text-[#e8e8f0]'
                           : 'text-[#8888a8] hover:bg-[#1c1c3a]/70 hover:text-[#e8e8f0]'
                       }`}
-                      style={{
-                        borderInlineStartColor: isActive ? cat.color : 'transparent',
-                      }}
                     >
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -253,7 +258,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       >
                         <Pin className="w-3.5 h-3.5 fill-emerald-400 text-emerald-400" />
                       </button>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#1c1c3a] text-[#5a5a78]">
+                      <span className="text-xs font-mono tabular-nums text-[#5a5a78]">
                         {totalCards}
                       </span>
                     </div>
@@ -290,14 +295,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <div
                       key={cat.id}
                       onClick={() => onSelectCategory(cat.id)}
-                      className={`group flex items-center gap-2.5 px-3 py-2 rounded-xl cursor-pointer text-sm font-medium transition-all ${
+                      className={`group flex items-center gap-2.5 px-3 py-2 rounded-lg cursor-pointer text-sm font-medium transition-colors ${
                         isActive
-                          ? 'bg-[#1c1c3a] text-white shadow-sm border-s-4'
+                          ? 'bg-[#1c1c3a] text-[#e8e8f0]'
                           : 'text-[#8888a8] hover:bg-[#1c1c3a]/70 hover:text-[#e8e8f0]'
                       }`}
-                      style={{
-                        borderInlineStartColor: isActive ? cat.color : 'transparent',
-                      }}
                     >
                       <span
                         className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -368,7 +370,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </button>
                       </div>
 
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#1c1c3a] text-[#5a5a78]">
+                      <span className="text-xs font-mono tabular-nums text-[#5a5a78]">
                         {totalCards}
                       </span>
                     </div>
@@ -384,9 +386,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <button
             data-tour="profile-btn"
             onClick={onOpenProfile}
-            className="w-full flex items-center gap-3 p-2 rounded-xl hover:bg-[#1c1c3a] transition-colors text-start focus:outline-none"
+            className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-[#1c1c3a] transition-colors text-start focus:outline-none"
           >
-            <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-white font-bold text-sm shrink-0 overflow-hidden shadow-inner">
+            <div className="w-8 h-8 rounded-lg bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center text-emerald-400 font-bold text-xs shrink-0 overflow-hidden">
               {profile.avatar ? (
                 <img
                   src={profile.avatar}

@@ -33,7 +33,7 @@ export const CookieConsentModal: React.FC<CookieConsentModalProps> = ({
         {/* Header with Centered Purple Diamond Logo */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-purple-950/40 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0 shadow-lg shadow-purple-950/40">
+            <div className="w-10 h-10 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center text-emerald-400 shrink-0">
               <svg
                 viewBox="0 0 24 24"
                 fill="none"
@@ -41,7 +41,7 @@ export const CookieConsentModal: React.FC<CookieConsentModalProps> = ({
                 strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="w-6 h-6 text-purple-400 drop-shadow-[0_0_8px_rgba(168,85,247,0.4)]"
+                className="w-5 h-5 text-emerald-400"
               >
                 <path d="M2 12l4-8h12l4 8-10 8z" />
               </svg>
@@ -96,7 +96,7 @@ export const CookieConsentModal: React.FC<CookieConsentModalProps> = ({
           <button
             type="button"
             onClick={onAcceptNecessary}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] border border-[#2a2a4a] text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] flex items-center justify-center text-center transition-colors"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] border border-[#2a2a4a] text-xs font-semibold text-[#e8e8f0] flex items-center justify-center text-center transition-colors"
           >
             {isAr ? 'ملفات تعريف الارتباط الضرورية فقط' : 'Necessary cookies only'}
           </button>

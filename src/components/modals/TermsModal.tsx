@@ -218,13 +218,49 @@ export const TermsModal: React.FC<TermsModalProps> = ({
 
               <div className="space-y-2">
                 <h3 className="text-sm font-bold text-[#e8e8f0]">
-                  3. {isAr ? 'حذف البيانات والتحكم بها' : 'Data Control & Deletion'}
+                  3. {isAr ? 'حذف البيانات والاحتفاظ بها' : 'Data Retention and Deletion'}
                 </h3>
-                <p>
-                  {isAr
-                    ? 'يمكنك في أي وقت مسح كافة بياناتك بضغطة زر واحدة من قائمة الإعدادات ("مسح كافة البيانات") أو إلغاء ربط حساب Google وحذف النسخة الاحتياطية.'
-                    : 'You have full data ownership: export full JSON anytime, reset all local storage, or disconnect Google to revoke access.'}
-                </p>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>
+                    {isAr
+                      ? 'يمكنك تصدير جميع البطاقات الدراسية والمجموعات والمقاييس في أي وقت بصيغة JSON.'
+                      : 'You can export all study cards, decks, and metrics at any time as JSON.'}
+                  </li>
+                  <li>
+                    {isAr
+                      ? 'النقر على "حذف الحساب" في الإعدادات يحذف ملف النسخة الاحتياطية من Google Drive نهائياً، ويلغي رموز Google OAuth عبر نقطة الإلغاء الرسمية، ويمسح كافة البيانات المحلية وملفات تعريف الارتباط فوراً.'
+                      : 'Clicking "Delete Account" in Settings permanently deletes your backup file from Google Drive, revokes Google OAuth tokens via Google\'s revocation endpoint, and wipes all local storage and cookies instantly.'}
+                  </li>
+                  <li>
+                    {isAr ? (
+                      <>
+                        يمكنك أيضاً إلغاء وصول StudyFlow في أي وقت عبر{' '}
+                        <a
+                          href="https://myaccount.google.com/connections"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-400 hover:text-emerald-300 underline font-semibold"
+                        >
+                          التطبيقات المرتبطة بحساب Google
+                        </a>
+                        .
+                      </>
+                    ) : (
+                      <>
+                        You can also revoke StudyFlow access anytime via{' '}
+                        <a
+                          href="https://myaccount.google.com/connections"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-emerald-400 hover:text-emerald-300 underline font-semibold"
+                        >
+                          Google Connected Apps
+                        </a>
+                        .
+                      </>
+                    )}
+                  </li>
+                </ul>
               </div>
             </>
           )}

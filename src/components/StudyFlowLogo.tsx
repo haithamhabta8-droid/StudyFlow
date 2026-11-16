@@ -51,7 +51,7 @@ export const StudyFlowLogo: React.FC<StudyFlowLogoProps> = ({
         />
       </div>
       {showText && (
-        <span className="font-extrabold tracking-tight text-white font-sans">
+        <span className="font-extrabold tracking-tight text-[#e8e8f0] font-sans">
           StudyFlow
         </span>
       )}

@@ -284,7 +284,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
       {!isGoogleConnected && showConnectPrompt && (
         <div className="p-4 rounded-2xl bg-purple-950/30 border-2 border-purple-500/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg animate-in fade-in duration-200">
           <div className="space-y-0.5">
-            <h4 className="text-xs font-extrabold text-white flex items-center gap-2">
+            <h4 className="text-xs font-extrabold text-[#e8e8f0] flex items-center gap-2">
               <CalendarIcon className="w-4 h-4 text-purple-400" />
               <span>
                 {lang === 'ar'
@@ -303,7 +303,7 @@ export const TimelineView: React.FC<TimelineViewProps> = ({
             <button
               type="button"
               onClick={onConnectGoogle}
-              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs shadow-md transition-all active:scale-95"
+              className="px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 border border-slate-200 font-bold text-xs shadow-sm transition-all active:scale-95"
             >
               {lang === 'ar' ? 'تسجيل الدخول بـ Google' : 'Sign in with Google'}
             </button>

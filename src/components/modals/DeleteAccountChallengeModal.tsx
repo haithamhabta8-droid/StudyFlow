@@ -48,10 +48,6 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
     }
   };
 
-  const handleOpenGoogleConnectedApps = () => {
-    window.open('https://myaccount.google.com/connections', '_blank', 'noopener,noreferrer');
-  };
-
   // If deletion is finalized, display the confirmation dialog
   if (isFinalSuccess) {
     return (
@@ -79,22 +75,24 @@ export const DeleteAccountChallengeModal: React.FC<DeleteAccountChallengeModalPr
           </div>
 
           <div className="pt-2 space-y-2">
-            <button
-              type="button"
-              onClick={handleOpenGoogleConnectedApps}
+            <a
+              href="https://myaccount.google.com/connections"
+              target="_blank"
+              rel="noopener noreferrer"
               className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/40 transition-all active:scale-95"
             >
               <ExternalLink className="w-4 h-4" />
               <span>
                 {lang === 'ar' ? 'عرض التطبيقات المرتبطة بـ Google' : 'Check Google Connected Apps'}
               </span>
-            </button>
+            </a>
 
             <button
               type="button"
               onClick={() => {
                 setIsFinalSuccess(false);
                 setStep(1);
+                setPosIdx(0);
                 onClose();
               }}
               className="w-full py-2.5 px-4 rounded-xl bg-[#1c1c3a] hover:bg-[#242448] text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] transition-colors"

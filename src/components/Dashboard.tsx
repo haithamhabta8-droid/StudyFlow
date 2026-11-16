@@ -26,28 +26,17 @@ import {
 } from 'lucide-react';
 import {
   DndContext,
-  closestCenter,
-  pointerWithin,
-  MeasuringStrategy,
-  CollisionDetection,
   DragOverlay,
   DragStartEvent,
-  DragOverEvent,
-  KeyboardSensor,
-  PointerSensor,
+  DragMoveEvent,
+  DragEndEvent,
+  MouseSensor,
+  TouchSensor,
+  useDraggable,
   useSensor,
   useSensors,
-  DragEndEvent,
 } from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  useSortable,
-  rectSortingStrategy,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import { AppState, Category, WidgetConfig, WidgetSize } from '../types/index.ts';
+import { AppState, WidgetConfig, WidgetSize } from '../types/index.ts';
 import {
   formatTimer,
   calculateCardStats,
@@ -58,6 +47,8 @@ import {
   daysUntil,
 } from '../utils/calculations.ts';
 import { t } from '../utils/translations.ts';
+import { getModelInfo } from '../utils/gemini.ts';
+import { useGeminiModels } from '../hooks/useGeminiModels.ts';
 
 interface DashboardProps {
   state: AppState;
@@ -84,54 +75,89 @@ interface DashboardProps {
   onNavigateToTimeline?: () => void;
 }
 
-interface SortableWidgetProps {
+const INTERACTIVE_SELECTOR =
+  'button, a, input, textarea, select, option, [role="button"], [data-no-dnd="true"]';
+
+function isInteractiveDragBlock(target: EventTarget | null): boolean {
+  if (!(target instanceof Element)) return false;
+  if (target.closest('[data-drag-handle="true"]')) return false;
+  return Boolean(target.closest(INTERACTIVE_SELECTOR));
+}
+
+class SmartMouseSensor extends MouseSensor {
+  static activators = [
+    {
+      eventName: 'onMouseDown' as const,
+      handler: ({ nativeEvent }: { nativeEvent: MouseEvent }) => {
+        if (nativeEvent.button !== 0) return false;
+        return !isInteractiveDragBlock(nativeEvent.target);
+      },
+    },
+  ];
+}
+
+class SmartTouchSensor extends TouchSensor {
+  static activators = [
+    {
+      eventName: 'onTouchStart' as const,
+      handler: ({ nativeEvent }: { nativeEvent: TouchEvent }) => {
+        if (nativeEvent.touches.length > 1) return false;
+        return !isInteractiveDragBlock(nativeEvent.target);
+      },
+    },
+  ];
+}
+
+function reorderIds<T>(items: T[], fromIndex: number, toIndex: number): T[] {
+  if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return items;
+  const copy = items.slice();
+  const [moved] = copy.splice(fromIndex, 1);
+  copy.splice(toIndex, 0, moved);
+  return copy;
+}
+
+interface DraggableWidgetProps {
   id: string;
   sizeClass: string;
+  title: string;
+  lang: 'ar' | 'en';
   isCurrentlyDragged: boolean;
-  isOverTarget: boolean;
   children: (dragHandleProps: any) => React.ReactNode;
 }
 
-const SortableWidgetWrapper: React.FC<SortableWidgetProps> = ({
+const DraggableWidgetWrapper: React.FC<DraggableWidgetProps> = ({
   id,
   sizeClass,
+  title,
+  lang,
   isCurrentlyDragged,
-  isOverTarget,
   children,
 }) => {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef } = useDraggable({ id });
 
-  const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    transition: transition || 'transform 220ms cubic-bezier(0.2, 0, 0, 1)',
-    zIndex: isCurrentlyDragged || isDragging ? 30 : isOverTarget ? 10 : 1,
-  };
-
-  const content = children({ ...attributes, ...listeners });
+  // Attach accessibility attributes only to the dedicated 6-dot drag handle (never wrap inner buttons in role="button")
+  const content = children(attributes);
   if (!content) return null;
 
   return (
     <div
       ref={setNodeRef}
-      style={style}
-      className={`${sizeClass} relative group/widget flex flex-col ${
-        isCurrentlyDragged || isDragging
-          ? 'opacity-30 border-2 border-dashed border-emerald-500/70 rounded-2xl bg-emerald-950/15'
-          : isOverTarget
-          ? 'ring-2 ring-emerald-400/70 ring-offset-2 ring-offset-[#0a0a16] rounded-2xl'
-          : ''
+      data-widget-id={id}
+      {...listeners}
+      className={`${sizeClass} min-w-0 relative group/widget flex flex-col cursor-grab active:cursor-grabbing touch-pan-y transition-[grid-column] duration-200 ${
+        isCurrentlyDragged ? 'min-h-[160px]' : ''
       }`}
     >
-      <div className="flex-1 flex flex-col min-h-0">
-        {content}
-      </div>
+      {isCurrentlyDragged ? (
+        <div className="flex-1 rounded-xl border-2 border-dashed border-emerald-500/50 bg-emerald-500/5 flex flex-col items-center justify-center gap-1 p-4 text-center select-none">
+          <span className="text-xs font-semibold text-[#e8e8f0]">{title}</span>
+          <span className="text-[11px] font-medium text-[#8888a8]">
+            {lang === 'ar' ? 'أفلت الأداة هنا' : 'Drop widget here'}
+          </span>
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">{content}</div>
+      )}
     </div>
   );
 };
@@ -151,6 +177,8 @@ const CardResizeHandle: React.FC<CardResizeHandleProps> = ({
   gridRef,
   onChangeSize,
 }) => {
+  const [isResizing, setIsResizing] = useState(false);
+
   const handlePointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -158,6 +186,7 @@ const CardResizeHandle: React.FC<CardResizeHandleProps> = ({
     try {
       target.setPointerCapture(e.pointerId);
     } catch {}
+    setIsResizing(true);
 
     const containerEl = gridRef.current;
     const containerWidth = containerEl
@@ -168,33 +197,36 @@ const CardResizeHandle: React.FC<CardResizeHandleProps> = ({
       ? widgetCard.getBoundingClientRect()
       : target.getBoundingClientRect();
 
-      let lastSize = currentSize;
-      const onPointerMove = (ev: PointerEvent) => {
-        const isRTL = lang === 'ar';
-        const widthPx = isRTL
-          ? widgetRect.right - ev.clientX
-          : ev.clientX - widgetRect.left;
+    let lastSize = currentSize;
+    const onPointerMove = (ev: PointerEvent) => {
+      const isRTL = lang === 'ar';
+      const widthPx = isRTL
+        ? widgetRect.right - ev.clientX
+        : ev.clientX - widgetRect.left;
 
-        const ratio = Math.max(160, Math.min(containerWidth, widthPx)) / containerWidth;
+      const ratio = Math.max(70, Math.min(containerWidth, widthPx)) / containerWidth;
 
-        let targetSize: WidgetSize = 'third';
-        if (ratio < 0.42) {
-          targetSize = 'third';
-        } else if (ratio < 0.58) {
-          targetSize = 'half';
-        } else if (ratio < 0.82) {
-          targetSize = 'two-thirds';
-        } else {
-          targetSize = 'full';
-        }
+      let targetSize: WidgetSize = 'third';
+      if (ratio < 0.295) {
+        targetSize = 'quarter';
+      } else if (ratio < 0.42) {
+        targetSize = 'third';
+      } else if (ratio < 0.58) {
+        targetSize = 'half';
+      } else if (ratio < 0.82) {
+        targetSize = 'two-thirds';
+      } else {
+        targetSize = 'full';
+      }
 
-        if (targetSize !== lastSize && onChangeSize) {
-          lastSize = targetSize;
-          onChangeSize(widgetId, targetSize);
-        }
-      };
+      if (targetSize !== lastSize && onChangeSize) {
+        lastSize = targetSize;
+        onChangeSize(widgetId, targetSize);
+      }
+    };
 
     const onPointerUp = (ev: PointerEvent) => {
+      setIsResizing(false);
       try {
         target.releasePointerCapture(ev.pointerId);
       } catch {}
@@ -206,12 +238,29 @@ const CardResizeHandle: React.FC<CardResizeHandleProps> = ({
     window.addEventListener('pointerup', onPointerUp);
   };
 
+  const sizeBadge =
+    currentSize === 'quarter'
+      ? '1/4'
+      : currentSize === 'third'
+      ? '1/3'
+      : currentSize === 'half'
+      ? '1/2'
+      : currentSize === 'two-thirds'
+      ? '2/3'
+      : 'Full';
+
   return (
     <div
+      data-no-dnd="true"
       onPointerDown={handlePointerDown}
       title={lang === 'ar' ? 'اسحب الحافة لتغيير الحجم' : 'Drag edge to resize'}
-      className="absolute bottom-1.5 end-1.5 p-1 cursor-ew-resize rounded-lg text-[#5a5a78] hover:text-emerald-400 hover:bg-[#1c1c3a] active:text-emerald-300 transition-colors touch-none z-10 opacity-70 hover:opacity-100"
+      className="absolute bottom-1.5 end-1.5 p-1 cursor-ew-resize rounded-lg text-[#5a5a78] hover:text-emerald-400 hover:bg-[#1c1c3a] active:text-emerald-300 transition-colors touch-none z-10 opacity-70 hover:opacity-100 flex items-center gap-1"
     >
+      {isResizing && (
+        <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-bold pointer-events-none shadow-sm">
+          {sizeBadge}
+        </span>
+      )}
       <svg
         className="w-3.5 h-3.5"
         viewBox="0 0 24 24"
@@ -255,16 +304,35 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const [customPomoMinutes, setCustomPomoMinutes] = useState(
     Math.round(pomoTotalDuration / 60) || 25
   );
+  const [openSizeMenuId, setOpenSizeMenuId] = useState<string | null>(null);
+  const { models: liveModels } = useGeminiModels(false);
 
-  // Setup dnd-kit sensors (supports mouse and mobile touch with 5px threshold)
+  useEffect(() => {
+    if (!openSizeMenuId) return;
+    const handleOutside = (e: MouseEvent) => {
+      if (
+        e.target instanceof Element &&
+        !e.target.closest('[data-size-menu="true"]')
+      ) {
+        setOpenSizeMenuId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, [openSizeMenuId]);
+
+  // Android OS-style sensors: drag cleanly from header/card with Mouse (6px) or long-press Touch (180ms)
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(SmartMouseSensor, {
       activationConstraint: {
-        distance: 5,
+        distance: 6,
       },
     }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
+    useSensor(SmartTouchSensor, {
+      activationConstraint: {
+        delay: 180,
+        tolerance: 8,
+      },
     })
   );
 
@@ -409,180 +477,490 @@ export const Dashboard: React.FC<DashboardProps> = ({
   const visibleWidgets = useMemo(() => widgets.filter((w) => w.visible), [widgets]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [overId, setOverId] = useState<string | null>(null);
+  const [previewOrder, setPreviewOrder] = useState<string[] | null>(null);
   const [draggedDimensions, setDraggedDimensions] = useState<{
     width: number;
     height: number;
   } | null>(null);
 
-  // Pointer-first collision detection:
-  // Always resolves to the exact slot where the user's mouse cursor is (never shifts to card center)
-  const customCollisionDetection: CollisionDetection = (args) => {
-    const pointerCollisions = pointerWithin(args);
-    if (pointerCollisions.length > 0) {
-      return pointerCollisions;
+  const activeIdRef = useRef<string | null>(null);
+  const previewOrderRef = useRef<string[] | null>(null);
+  const startPointerRef = useRef<{ x: number; y: number } | null>(null);
+  const livePointerRef = useRef<{ x: number; y: number } | null>(null);
+  const pointerToCardCenterOffsetRef = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 });
+  const lockedSwapIdRef = useRef<string | null>(null);
+  const lastSwapRef = useRef<{
+    swappedWith: string | null;
+    px: number;
+    py: number;
+    ts: number;
+  } | null>(null);
+
+  const displayedVisibleWidgets = useMemo(() => {
+    if (!activeId || !previewOrder) return visibleWidgets;
+    const byId = new Map<string, WidgetConfig>(visibleWidgets.map((w) => [w.id, w]));
+    const ordered: WidgetConfig[] = [];
+    for (const id of previewOrder) {
+      const w = byId.get(id);
+      if (w) {
+        ordered.push(w);
+        byId.delete(id);
+      }
+    }
+    for (const w of byId.values()) ordered.push(w);
+    return ordered;
+  }, [activeId, previewOrder, visibleWidgets]);
+
+  const getWidgetTitle = (id: string): string => {
+    switch (id) {
+      case 'pomodoro':
+        return t('widgetPomodoro', lang);
+      case 'tasks':
+        return t('widgetTasks', lang);
+      case 'goals':
+        return t('widgetGoals', lang);
+      case 'sessions':
+      case 'sessionsToday':
+        return t('widgetSessionsToday', lang);
+      case 'weeklyActivity':
+      case 'activity':
+        return t('widgetActivity', lang);
+      case 'actions':
+        return t('widgetActions', lang);
+      case 'streak':
+        return t('widgetStreak', lang);
+      case 'exams':
+        return t('widgetExams', lang);
+      case 'stats':
+        return t('widgetStats', lang);
+      case 'grades':
+        return t('widgetGrades', lang);
+      case 'quizzes':
+      case 'quizAvg':
+        return t('widgetQuizAvg', lang);
+      case 'aiUsage':
+        return t('widgetAiUsage', lang);
+      default:
+        return id;
+    }
+  };
+
+  useEffect(() => {
+    if (!activeId) return;
+    const onPointerMove = (e: PointerEvent) => {
+      livePointerRef.current = { x: e.clientX, y: e.clientY };
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches[0]) {
+        livePointerRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      }
+    };
+    window.addEventListener('pointermove', onPointerMove, { passive: true });
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('touchmove', onTouchMove);
+    };
+  }, [activeId]);
+
+  const computeAndroidTargetOrder = (
+    currentOrder: string[],
+    dragId: string,
+    px: number,
+    py: number
+  ): string[] | null => {
+    const gridEl = gridRef.current;
+    if (!gridEl) return null;
+
+    const slotEls = Array.from(
+      gridEl.querySelectorAll<HTMLElement>('[data-widget-id]')
+    );
+    const rectMap = new Map<string, DOMRect>();
+    for (const el of slotEls) {
+      const id = el.getAttribute('data-widget-id');
+      if (id) rectMap.set(id, el.getBoundingClientRect());
     }
 
-    const { pointerCoordinates, droppableRects, droppableContainers } = args;
-    if (pointerCoordinates) {
-      let closestContainer = null;
-      let minDist = Infinity;
+    const activeIdx = currentOrder.indexOf(dragId);
+    if (activeIdx === -1) return null;
 
-      for (const container of droppableContainers) {
-        const rect = droppableRects.get(container.id);
-        if (!rect) continue;
-        const clampedX = Math.max(rect.left, Math.min(pointerCoordinates.x, rect.right));
-        const clampedY = Math.max(rect.top, Math.min(pointerCoordinates.y, rect.bottom));
-        const dx = pointerCoordinates.x - clampedX;
-        const dy = pointerCoordinates.y - clampedY;
-        const dist = dx * dx + dy * dy;
-        if (dist < minDist) {
-          minDist = dist;
-          closestContainer = container;
+    // 1. If pointer is already inside the active "Drop here" placeholder, clear swap lock & stay put
+    const activeRect = rectMap.get(dragId);
+    if (
+      activeRect &&
+      px >= activeRect.left &&
+      px <= activeRect.right &&
+      py >= activeRect.top &&
+      py <= activeRect.bottom
+    ) {
+      lockedSwapIdRef.current = null;
+      return null;
+    }
+
+    // Clear lockedSwapIdRef once the pointer exits that widget's bounding rect
+    if (lockedSwapIdRef.current) {
+      const lockedRect = rectMap.get(lockedSwapIdRef.current);
+      if (
+        !lockedRect ||
+        px < lockedRect.left ||
+        px > lockedRect.right ||
+        py < lockedRect.top ||
+        py > lockedRect.bottom
+      ) {
+        lockedSwapIdRef.current = null;
+      }
+    }
+
+    const isRTL = lang === 'ar';
+
+    // 2. Direct hit on another widget card (Android OS swap/shift into hovered widget's position)
+    for (let i = 0; i < currentOrder.length; i++) {
+      const targetId = currentOrder[i];
+      if (targetId === dragId) continue;
+      const r = rectMap.get(targetId);
+      if (!r) continue;
+      if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+        if (lockedSwapIdRef.current === targetId) {
+          return null;
+        }
+        const lastSwap = lastSwapRef.current;
+        if (
+          lastSwap &&
+          lastSwap.swappedWith === targetId &&
+          (Date.now() - lastSwap.ts < 180 ||
+            Math.hypot(px - lastSwap.px, py - lastSwap.py) < 18)
+        ) {
+          return null;
+        }
+        lockedSwapIdRef.current = targetId;
+        lastSwapRef.current = { swappedWith: targetId, px, py, ts: Date.now() };
+        return reorderIds(currentOrder, activeIdx, i);
+      }
+    }
+
+    // 3. Pointer is in an empty grid gap / partial row right-side / above or below grid
+    const measured = currentOrder
+      .map((id, idx) => ({ id, idx, rect: rectMap.get(id) }))
+      .filter((item): item is { id: string; idx: number; rect: DOMRect } => Boolean(item.rect));
+
+    if (measured.length === 0) return null;
+
+    // Cluster items into rendered horizontal rows
+    const byTop = [...measured].sort((a, b) => a.rect.top - b.rect.top);
+    const rows: {
+      top: number;
+      bottom: number;
+      items: typeof measured;
+    }[] = [];
+
+    for (const item of byTop) {
+      const existingRow = rows.find((row) => Math.abs(item.rect.top - row.top) < 36);
+      if (existingRow) {
+        existingRow.items.push(item);
+        existingRow.top = Math.min(existingRow.top, item.rect.top);
+        existingRow.bottom = Math.max(existingRow.bottom, item.rect.bottom);
+      } else {
+        rows.push({
+          top: item.rect.top,
+          bottom: item.rect.bottom,
+          items: [item],
+        });
+      }
+    }
+
+    for (const row of rows) {
+      row.items.sort((a, b) =>
+        isRTL ? b.rect.left - a.rect.left : a.rect.left - b.rect.left
+      );
+    }
+
+    const firstRow = rows[0];
+    const lastRow = rows[rows.length - 1];
+    const withoutActive = currentOrder.filter((id) => id !== dragId);
+
+    if (py < firstRow.top - 12) {
+      if (activeIdx === 0) return null;
+      lastSwapRef.current = { swappedWith: '__top__', px, py, ts: Date.now() };
+      return [dragId, ...withoutActive];
+    }
+
+    if (py > lastRow.bottom + 12) {
+      if (activeIdx === currentOrder.length - 1) return null;
+      lastSwapRef.current = { swappedWith: '__bottom__', px, py, ts: Date.now() };
+      return [...withoutActive, dragId];
+    }
+
+    // Find row strictly containing py, or break vertical gutter ties using dragged card center
+    let chosenRow = rows.find((row) => py >= row.top && py <= row.bottom);
+    if (!chosenRow) {
+      const cardCenterY = py + pointerToCardCenterOffsetRef.current.dy;
+      chosenRow = rows.find((row) => cardCenterY >= row.top && cardCenterY <= row.bottom);
+    }
+    if (!chosenRow) {
+      let bestDist = Infinity;
+      for (const row of rows) {
+        const dist = py < row.top ? row.top - py : py - row.bottom;
+        if (dist < bestDist) {
+          bestDist = dist;
+          chosenRow = row;
         }
       }
+    }
 
-      if (closestContainer) {
-        return [{ id: closestContainer.id }];
+    if (!chosenRow || chosenRow.items.length === 0) return null;
+
+    // Determine exact horizontal insertion slot within the chosen row (handles empty row ends!)
+    const rowOthers = chosenRow.items.filter((item) => item.id !== dragId);
+    if (rowOthers.length === 0) return null;
+
+    let insertAfterId: string | null = null;
+    for (const item of rowOthers) {
+      const centerX = item.rect.left + item.rect.width / 2;
+      const isPast = isRTL ? px < centerX : px > centerX;
+      if (isPast) {
+        insertAfterId = item.id;
       }
     }
 
-    return closestCenter(args);
+    let insertIdxInWithout: number;
+    if (insertAfterId === null) {
+      insertIdxInWithout = withoutActive.indexOf(rowOthers[0].id);
+    } else {
+      insertIdxInWithout = withoutActive.indexOf(insertAfterId) + 1;
+    }
+
+    if (insertIdxInWithout < 0) insertIdxInWithout = withoutActive.length;
+    const nextOrder = withoutActive.slice();
+    nextOrder.splice(insertIdxInWithout, 0, dragId);
+
+    const changed = nextOrder.some((id, idx) => id !== currentOrder[idx]);
+    if (!changed) return null;
+
+    const swapKey = `__gap_${chosenRow.top}_${insertAfterId || 'start'}`;
+    const lastSwap = lastSwapRef.current;
+    if (
+      lastSwap &&
+      lastSwap.swappedWith === swapKey &&
+      (Date.now() - lastSwap.ts < 220 ||
+        Math.hypot(px - lastSwap.px, py - lastSwap.py) < 20)
+    ) {
+      return null;
+    }
+    lastSwapRef.current = { swappedWith: swapKey, px, py, ts: Date.now() };
+    return nextOrder;
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     const id = event.active.id as string;
+    const initialOrder = visibleWidgets.map((w) => w.id);
+    activeIdRef.current = id;
+    previewOrderRef.current = initialOrder;
     setActiveId(id);
-    setOverId(id);
+    setPreviewOrder(initialOrder);
+    lastSwapRef.current = null;
+    lockedSwapIdRef.current = null;
+
+    const activator = event.activatorEvent as any;
+    const clientX =
+      typeof activator?.clientX === 'number'
+        ? activator.clientX
+        : activator?.touches?.[0]?.clientX;
+    const clientY =
+      typeof activator?.clientY === 'number'
+        ? activator.clientY
+        : activator?.touches?.[0]?.clientY;
+
+    if (typeof clientX === 'number' && typeof clientY === 'number') {
+      startPointerRef.current = { x: clientX, y: clientY };
+      livePointerRef.current = { x: clientX, y: clientY };
+    } else {
+      startPointerRef.current = null;
+      livePointerRef.current = null;
+    }
+
     const initialRect = event.active.rect.current.initial;
     if (initialRect) {
       setDraggedDimensions({
         width: initialRect.width,
         height: initialRect.height,
       });
+      if (typeof clientX === 'number' && typeof clientY === 'number') {
+        pointerToCardCenterOffsetRef.current = {
+          dx: initialRect.left + initialRect.width / 2 - clientX,
+          dy: initialRect.top + initialRect.height / 2 - clientY,
+        };
+      } else {
+        pointerToCardCenterOffsetRef.current = { dx: 0, dy: 0 };
+      }
     } else {
       setDraggedDimensions(null);
+      pointerToCardCenterOffsetRef.current = { dx: 0, dy: 0 };
     }
     try {
       document.body.classList.add('is-dragging');
     } catch {}
   };
 
-  const handleDragOver = (event: DragOverEvent) => {
-    const nextOver = event.over ? (event.over.id as string) : null;
-    if (nextOver !== overId) {
-      setOverId(nextOver);
+  const handleDragMove = (event: DragMoveEvent) => {
+    const currentDragId = activeIdRef.current;
+    const currentOrder = previewOrderRef.current;
+    if (!currentDragId || !currentOrder) return;
+
+    let px: number | null = null;
+    let py: number | null = null;
+
+    if (livePointerRef.current) {
+      px = livePointerRef.current.x;
+      py = livePointerRef.current.y;
+    } else if (startPointerRef.current) {
+      px = startPointerRef.current.x + event.delta.x;
+      py = startPointerRef.current.y + event.delta.y;
+    }
+
+    if (px === null || py === null) return;
+
+    const nextOrder = computeAndroidTargetOrder(currentOrder, currentDragId, px, py);
+    if (nextOrder) {
+      previewOrderRef.current = nextOrder;
+      setPreviewOrder(nextOrder);
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    const currentActive = active.id as string;
-    const currentOver = over ? (over.id as string) : null;
+  const handleDragEnd = (_event: DragEndEvent) => {
+    const finalVisibleOrder = previewOrderRef.current;
 
+    activeIdRef.current = null;
+    previewOrderRef.current = null;
     setActiveId(null);
-    setOverId(null);
+    setPreviewOrder(null);
     setDraggedDimensions(null);
+    startPointerRef.current = null;
+    livePointerRef.current = null;
+    lastSwapRef.current = null;
+    lockedSwapIdRef.current = null;
     try {
       document.body.classList.remove('is-dragging');
     } catch {}
 
-    if (currentOver && currentActive !== currentOver) {
-      const oldIndex = widgets.findIndex((w) => w.id === currentActive);
-      const newIndex = widgets.findIndex((w) => w.id === currentOver);
-      if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-        const finalWidgets = arrayMove(widgets, oldIndex, newIndex);
-        if (onReorderWidgets) {
-          onReorderWidgets(finalWidgets);
-        }
+    if (finalVisibleOrder && onReorderWidgets) {
+      const currentVisibleIds = visibleWidgets.map((w) => w.id);
+      const changed =
+        finalVisibleOrder.length === currentVisibleIds.length &&
+        finalVisibleOrder.some((id, idx) => id !== currentVisibleIds[idx]);
+      if (changed) {
+        const byId = new Map<string, WidgetConfig>(widgets.map((w) => [w.id, w]));
+        const hiddenWidgets = widgets.filter((w) => !w.visible);
+        const reorderedVisible = finalVisibleOrder
+          .map((id) => byId.get(id))
+          .filter((w): w is WidgetConfig => Boolean(w));
+        onReorderWidgets([...reorderedVisible, ...hiddenWidgets]);
       }
     }
   };
 
   const handleDragCancel = () => {
+    activeIdRef.current = null;
+    previewOrderRef.current = null;
     setActiveId(null);
-    setOverId(null);
+    setPreviewOrder(null);
     setDraggedDimensions(null);
+    startPointerRef.current = null;
+    livePointerRef.current = null;
+    lastSwapRef.current = null;
+    lockedSwapIdRef.current = null;
     try {
       document.body.classList.remove('is-dragging');
     } catch {}
   };
 
-  // Size cycling helper: third -> half -> two-thirds -> full -> third
-  const handleCycleSize = (widgetId: string, currentSize: WidgetSize) => {
-    const order: WidgetSize[] = ['third', 'half', 'two-thirds', 'full'];
-    const currentIdx = order.indexOf(currentSize);
-    const nextSize = order[(currentIdx + 1) % order.length];
-    if (onChangeWidgetSize) {
-      onChangeWidgetSize(widgetId, nextSize);
-    }
-  };
+  // Size presets available directly from widget headers
+  const sizeOptions: Array<{ value: WidgetSize; short: string }> = [
+    { value: 'quarter', short: '1/4' },
+    { value: 'third', short: '1/3' },
+    { value: 'half', short: '1/2' },
+    { value: 'two-thirds', short: '2/3' },
+    { value: 'full', short: 'Full' },
+  ];
 
-  const sizeLabels: Record<WidgetSize, string> = {
-    quarter: lang === 'ar' ? 'ربع العرض' : 'Quarter (1/4)',
-    third: lang === 'ar' ? 'ثلث العرض' : 'Third (1/3)',
-    half: lang === 'ar' ? 'نصف العرض' : 'Half (1/2)',
-    'two-thirds': lang === 'ar' ? 'ثلثي العرض' : 'Two-Thirds (2/3)',
-    full: lang === 'ar' ? 'كامل العرض' : 'Full Width',
-  };
-
-  const sizeShortLabels: Record<WidgetSize, string> = {
-    quarter: lang === 'ar' ? 'ربع' : '1/4',
-    third: lang === 'ar' ? 'ثلث' : '1/3',
-    half: lang === 'ar' ? 'نصف' : '1/2',
-    'two-thirds': lang === 'ar' ? 'ثلثين' : '2/3',
-    full: lang === 'ar' ? 'كامل' : 'Full',
-  };
-
-  // Universal Clean Widget Header Controls: Square shape toggle + square drag handle (no up/down arrows)
+  // Quiet Header Controls: compact width selector + drag handle
   const renderWidgetHeaderControls = (
     widgetId: string,
     currentSize: WidgetSize,
-    index: number,
+    _index: number,
     dragHandleProps: any,
     extraAction?: React.ReactNode
   ) => {
-    const isCompact = currentSize === 'third' || currentSize === 'quarter';
+    const isQuarterCtrl = currentSize === 'quarter';
+    const isMenuOpen = openSizeMenuId === widgetId;
+    const currentShort =
+      currentSize === 'quarter'
+        ? '1/4'
+        : currentSize === 'third'
+        ? '1/3'
+        : currentSize === 'half'
+        ? '1/2'
+        : currentSize === 'two-thirds'
+        ? '2/3'
+        : 'Full';
 
     return (
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className={`flex items-center ${isQuarterCtrl ? 'gap-0.5' : 'gap-1'} shrink-0`}>
         {extraAction}
 
-        {/* Square-shaped Compact / Expanded Toggle */}
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            const nextSize: WidgetSize = isCompact ? 'two-thirds' : 'third';
-            if (onChangeWidgetSize) onChangeWidgetSize(widgetId, nextSize);
-          }}
-          title={
-            lang === 'ar'
-              ? isCompact
-                ? 'توسيع لعرض مزيد من التفاصيل'
-                : 'تصغير إلى شكل مربع'
-              : isCompact
-              ? 'Expand for more details'
-              : 'Shrink to square'
-          }
-          className="w-8 h-8 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/50 hover:bg-[#242448] flex items-center justify-center text-[#8888a8] hover:text-white transition-all active:scale-95 shadow-xs"
-        >
-          {isCompact ? (
-            <Maximize2 className="w-3.5 h-3.5 text-emerald-400" />
-          ) : (
-            <Minimize2 className="w-3.5 h-3.5 text-emerald-400" />
-          )}
-        </button>
+        <div className="relative" data-size-menu="true" data-no-dnd="true">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpenSizeMenuId((prev) => (prev === widgetId ? null : widgetId));
+            }}
+            title={
+              lang === 'ar'
+                ? 'تغيير عرض البطاقة (1/4 لوضع 4 بطاقات في صف واحد)'
+                : 'Resize widget width (pick 1/4 for 4 per row)'
+            }
+            aria-label={`Resize widget (${currentShort})`}
+            className={`${isQuarterCtrl ? 'h-6 px-1 text-[10px]' : 'h-7 px-1.5 text-[10px]'} rounded-lg hover:bg-[#1c1c3a] flex items-center justify-center font-mono font-semibold text-[#8888a8] hover:text-[#e8e8f0] transition-colors tabular-nums`}
+          >
+            {currentShort}
+          </button>
 
-        {/* Dedicated Square 6-dots Drag Handle */}
+          {isMenuOpen && (
+            <div className="absolute end-0 top-8 z-30 flex items-center gap-0.5 p-1 rounded-xl bg-[#12122a] border border-[#2a2a4a] shadow-xl whitespace-nowrap">
+              {sizeOptions.map((opt) => {
+                const active = opt.value === currentSize;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (onChangeWidgetSize) onChangeWidgetSize(widgetId, opt.value);
+                      setOpenSizeMenuId(null);
+                    }}
+                    className={`px-2 py-1 rounded-lg text-[10px] font-mono font-bold transition-colors ${
+                      active
+                        ? 'bg-emerald-600 text-white'
+                        : 'text-[#8888a8] hover:text-[#e8e8f0] hover:bg-[#1c1c3a]'
+                    }`}
+                  >
+                    {opt.short}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <div
           data-tour="drag-handle"
+          data-drag-handle="true"
           {...dragHandleProps}
           title={lang === 'ar' ? 'اضغط واسحب لإعادة الترتيب' : 'Drag to reorder'}
-          className="w-8 h-8 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/50 hover:bg-[#242448] flex items-center justify-center cursor-grab active:cursor-grabbing text-[#8888a8] hover:text-emerald-400 touch-none transition-all shadow-xs"
+          className={`${isQuarterCtrl ? 'w-5 h-5' : 'w-7 h-7'} rounded-lg hover:bg-[#1c1c3a] flex items-center justify-center cursor-grab active:cursor-grabbing text-[#5a5a78] hover:text-[#e8e8f0] touch-none transition-colors`}
           aria-label="Drag widget handle"
         >
-          <GripVertical className="w-4 h-4" />
+          <GripVertical className="w-3.5 h-3.5" />
         </div>
       </div>
     );
@@ -595,20 +973,26 @@ export const Dashboard: React.FC<DashboardProps> = ({
     dragHandleProps: any
   ) => {
     const isExpanded = w.size !== 'third' && w.size !== 'quarter';
+    const isQuarter = w.size === 'quarter';
+    const cardPad = isQuarter ? 'p-3.5' : 'p-5';
+    const titleClass = isQuarter
+      ? 'font-semibold text-xs tracking-tight text-[#e8e8f0] truncate'
+      : 'font-semibold text-sm tracking-tight text-[#e8e8f0] truncate';
+    const extraBtnSize = isQuarter ? 'w-5 h-5' : 'w-7 h-7';
 
     switch (w.id) {
       case 'pomodoro':
         return (
           <div
             data-tour="pomodoro"
-            className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative"
+            className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}
           >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+            <div className="flex items-center justify-between gap-1.5 mb-3">
+              <div className="flex items-center gap-2 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Clock className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetPomodoro', lang)}
                 </h3>
               </div>
@@ -622,7 +1006,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={onOpenFullscreenPomo}
                   title={t('fullscreen', lang)}
                   aria-label={t('fullscreen', lang)}
-                  className="w-8 h-8 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
+                  className={`${extraBtnSize} rounded-lg hover:bg-[#1c1c3a] flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] transition-colors`}
                 >
                   <Maximize2 className="w-3.5 h-3.5" />
                 </button>
@@ -707,9 +1091,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
             ) : (
               /* Normal Timer Display with Click-to-Edit Trigger */
               <div className="space-y-3 py-1">
-                <div className="flex items-center gap-5">
+                <div className={isQuarter ? 'flex flex-col items-center text-center gap-3' : 'flex items-center gap-5'}>
                   {/* Clickable Ring */}
                   <div
+                    data-no-dnd="true"
                     onClick={() => {
                       if (!isPomoRunning) {
                         setCustomPomoMinutes(Math.round(pomoTotalDuration / 60) || 25);
@@ -723,22 +1108,22 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         ? 'اضغط لتعديل المدة'
                         : 'Click to edit duration'
                     }
-                    className={`relative w-22 h-22 shrink-0 flex items-center justify-center group ${
+                    className={`relative ${isQuarter ? 'w-20 h-20' : 'w-22 h-22'} shrink-0 flex items-center justify-center group ${
                       !isPomoRunning ? 'cursor-pointer' : ''
                     }`}
                   >
-                    <svg className="w-full h-full transform -rotate-90">
+                    <svg viewBox="0 0 96 96" className="w-full h-full transform -rotate-90">
                       <circle
-                        cx="50%"
-                        cy="50%"
+                        cx="48"
+                        cy="48"
                         r="40"
-                        stroke="#1c1c3a"
+                        stroke="var(--border)"
                         strokeWidth="7"
                         fill="transparent"
                       />
                       <circle
-                        cx="50%"
-                        cy="50%"
+                        cx="48"
+                        cy="48"
                         r="40"
                         stroke={pomoMode === 'focus' ? 'var(--primary)' : '#00d4aa'}
                         strokeWidth="7"
@@ -762,7 +1147,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   </div>
 
                   {/* Details and controls */}
-                  <div className="flex-1 space-y-2">
+                  <div className={`flex-1 min-w-0 space-y-2 ${isQuarter ? 'flex flex-col items-center' : ''}`}>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-bold uppercase tracking-wider text-emerald-400">
                         {pomoMode === 'focus' ? t('focus', lang) : t('break', lang)}
@@ -781,14 +1166,16 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         </button>
                       )}
                     </div>
-                    <div className="text-xs text-[#8888a8]">
-                      {t('nextBreak', lang)}: 05:00
-                    </div>
+                    {!isQuarter && (
+                      <div className="text-xs text-[#8888a8]">
+                        {t('nextBreak', lang)}: 05:00
+                      </div>
+                    )}
 
                     <div className="flex items-center gap-2 pt-1">
                       <button
                         onClick={onTogglePomo}
-                        className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition-all active:scale-95"
+                        className={`flex items-center gap-1.5 ${isQuarter ? 'px-3 py-1.5' : 'px-4 py-2'} rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/30 transition-all active:scale-95 whitespace-nowrap`}
                       >
                         {isPomoRunning ? (
                           <>
@@ -806,7 +1193,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                         onClick={onResetPomo}
                         title={t('reset', lang)}
                         aria-label={t('reset', lang)}
-                        className="p-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
+                        className="p-2 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-[#8888a8] hover:text-[#e8e8f0] transition-colors shrink-0"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                       </button>
@@ -865,68 +1252,98 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       case 'stats':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <TrendingUp className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetStats', lang)}
                 </h3>
               </div>
               {renderWidgetHeaderControls(w.id, w.size, index, dragHandleProps)}
             </div>
 
-            <div className={`grid ${isExpanded ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2'} gap-2.5`}>
-              <div className="bg-[#1c1c3a] p-3 rounded-xl border border-[#2a2a4a]/50">
-                <div className="text-[11px] font-semibold text-[#8888a8] truncate">
+            <div
+              className={`grid ${
+                isExpanded
+                  ? 'grid-cols-2 sm:grid-cols-4 gap-3'
+                  : 'grid-cols-2 border-y border-[#2a2a4a]/50'
+              }`}
+            >
+              <div
+                className={
+                  isExpanded
+                    ? 'py-2 px-1 flex flex-col justify-between min-w-0'
+                    : 'py-2.5 pe-2.5 border-e border-b border-[#2a2a4a]/50 flex flex-col justify-between min-w-0'
+                }
+              >
+                <div className="text-[11px] font-medium text-[#8888a8] leading-snug">
                   {t('totalCards', lang)}
                 </div>
-                <div className="text-2xl font-extrabold font-mono text-[#e8e8f0] mt-1">
+                <div className="text-xl font-bold font-mono text-[#e8e8f0] mt-1 tabular-nums">
                   {cardStats.total}
                 </div>
               </div>
-              <div className="bg-[#1c1c3a] p-3 rounded-xl border border-[#2a2a4a]/50">
-                <div className="text-[11px] font-semibold text-[#8888a8] truncate">
+              <div
+                className={
+                  isExpanded
+                    ? 'py-2 px-1 flex flex-col justify-between min-w-0'
+                    : 'py-2.5 ps-3 border-b border-[#2a2a4a]/50 flex flex-col justify-between min-w-0'
+                }
+              >
+                <div className="text-[11px] font-medium text-[#8888a8] leading-snug">
                   {t('mastered', lang)}
                 </div>
-                <div className="text-2xl font-extrabold font-mono text-teal-400 mt-1">
+                <div className="text-xl font-bold font-mono text-teal-400 mt-1 tabular-nums">
                   {cardStats.mastered}
                 </div>
               </div>
-              <div className="bg-[#1c1c3a] p-3 rounded-xl border border-[#2a2a4a]/50">
-                <div className="text-[11px] font-semibold text-[#8888a8] truncate">
+              <div
+                className={
+                  isExpanded
+                    ? 'py-2 px-1 flex flex-col justify-between min-w-0'
+                    : 'py-2.5 pe-2.5 border-e border-[#2a2a4a]/50 flex flex-col justify-between min-w-0'
+                }
+              >
+                <div className="text-[11px] font-medium text-[#8888a8] leading-snug">
                   {t('streakDays', lang)}
                 </div>
-                <div className="text-2xl font-extrabold font-mono text-rose-400 mt-1">
+                <div className="text-xl font-bold font-mono text-rose-400 mt-1 tabular-nums">
                   {streakInfo.currentStreak}
                 </div>
               </div>
-              <div className="bg-[#1c1c3a] p-3 rounded-xl border border-[#2a2a4a]/50">
-                <div className="text-[11px] font-semibold text-[#8888a8] truncate">
+              <div
+                className={
+                  isExpanded
+                    ? 'py-2 px-1 flex flex-col justify-between min-w-0'
+                    : 'py-2.5 ps-3 flex flex-col justify-between min-w-0'
+                }
+              >
+                <div className="text-[11px] font-medium text-[#8888a8] leading-snug">
                   {t('graded', lang)}
                 </div>
-                <div className="text-2xl font-extrabold font-mono text-amber-400 mt-1">
+                <div className="text-xl font-bold font-mono text-amber-400 mt-1 tabular-nums">
                   {allGrades.length}
                 </div>
               </div>
             </div>
 
-            {/* Expanded Detailed Breakdown */}
-            {isExpanded && (
-              <div className="mt-3 pt-3 border-t border-[#2a2a4a]/50 flex items-center justify-between text-xs text-[#8888a8]">
-                <span>
-                  {lang === 'ar' ? 'نسبة الإتقان:' : 'Mastery Rate:'}{' '}
-                  <strong className="text-teal-400 font-mono">{cardStats.masteryPct}%</strong>
-                </span>
+            {/* Mastery & Deck Breakdown */}
+            <div className="mt-3 pt-2 flex flex-wrap items-center justify-between gap-1 text-xs text-[#8888a8]">
+              <span>
+                {lang === 'ar' ? 'نسبة الإتقان:' : 'Mastery:'}{' '}
+                <strong className="text-teal-400 font-mono tabular-nums">{cardStats.masteryPct}%</strong>
+              </span>
+              {isExpanded && (
                 <span>
                   {state.categories.length} {t('categories', lang)} ·{' '}
                   {state.categories.flatMap((c) => c.decks || []).length}{' '}
                   {lang === 'ar' ? 'مجموعات' : 'decks'}
                 </span>
-              </div>
-            )}
+              )}
+            </div>
 
             <CardResizeHandle
               widgetId={w.id}
@@ -938,37 +1355,58 @@ export const Dashboard: React.FC<DashboardProps> = ({
           </div>
         );
 
-      case 'aiUsage':
+      case 'aiUsage': {
+        const activeModelInfo =
+          liveModels.find((m) => m.id === state.settings.model) ||
+          getModelInfo(state.settings.model);
+        const modelTierLabel =
+          activeModelInfo.tier === 'paid'
+            ? lang === 'ar'
+              ? 'مدفوع'
+              : 'Paid'
+            : activeModelInfo.badge === 'new'
+            ? lang === 'ar'
+              ? 'جديد'
+              : 'New'
+            : activeModelInfo.badge === 'latest'
+            ? lang === 'ar'
+              ? 'تلقائي'
+              : 'Latest'
+            : lang === 'ar'
+            ? 'سريع'
+            : 'Free';
+
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Cpu className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetAiUsage', lang)}
                 </h3>
               </div>
-              {renderWidgetHeaderControls(
-                w.id,
-                w.size,
-                index,
-                dragHandleProps,
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  Gemini 3.8 Flash
-                </span>
-              )}
+              {renderWidgetHeaderControls(w.id, w.size, index, dragHandleProps)}
             </div>
 
             <div className="space-y-3">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="font-bold text-emerald-400 truncate">
+                  {activeModelInfo.name}
+                </span>
+                <span className="text-[11px] font-semibold text-[#8888a8] shrink-0">
+                  {modelTierLabel}
+                </span>
+              </div>
+
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#8888a8]">
                   {lang === 'ar' ? 'الاستدعاءات اليومية' : 'Daily Calls'}
                 </span>
-                <span className="font-mono font-bold text-[#e8e8f0]">
+                <span className="font-mono font-bold text-[#e8e8f0] tabular-nums">
                   {state.settings.aiTier === 'paid'
-                    ? `${state.settings.aiUsageToday || 0} calls (High Quota)`
+                    ? `${state.settings.aiUsageToday || 0} (High)`
                     : `${state.settings.aiUsageToday || 0} / 20`}
                 </span>
               </div>
@@ -996,13 +1434,19 @@ export const Dashboard: React.FC<DashboardProps> = ({
               )}
 
               {!state.settings.apiKey && (
-                <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-between text-xs">
-                  <span className="text-emerald-300 text-[11px]">
+                <div
+                  className={`p-2.5 rounded-lg bg-[#1c1c3a] border border-[#2a2a4a] flex gap-2 text-xs ${
+                    isExpanded
+                      ? 'items-center justify-between'
+                      : 'flex-col items-stretch'
+                  }`}
+                >
+                  <span className="text-[#8888a8] text-[11px] leading-snug">
                     {t('pleaseAddKey', lang)}
                   </span>
                   <button
                     onClick={onOpenSettings}
-                    className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] shrink-0"
+                    className="px-2.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-semibold text-[11px] shrink-0 whitespace-nowrap text-center transition-colors"
                   >
                     {t('openSettings', lang)}
                   </button>
@@ -1019,34 +1463,42 @@ export const Dashboard: React.FC<DashboardProps> = ({
             />
           </div>
         );
+      }
 
       case 'goals':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Award className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetGoals', lang)}
                 </h3>
               </div>
               {renderWidgetHeaderControls(w.id, w.size, index, dragHandleProps)}
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-3 pb-1.5">
               <div>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-[#8888a8] flex items-center gap-1.5">
-                    <span>{t('dailyGoal', lang)} ({dailyGoal} {t('minutes', lang)})</span>
+                <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                  <span className="text-[#8888a8] flex items-center gap-1.5 min-w-0 truncate">
+                    <span className="truncate">
+                      {isExpanded
+                        ? `${t('dailyGoal', lang)} (${dailyGoal} ${t('minutes', lang)})`
+                        : lang === 'ar'
+                        ? 'الهدف اليومي'
+                        : 'Daily Goal'}
+                    </span>
                     {isPomoRunning && pomoMode === 'focus' && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/20 text-teal-300 animate-pulse">
-                        ● {lang === 'ar' ? 'تركيز نشط الآن' : 'Live Focus'}
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-teal-400 shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-teal-400" />
+                        <span>{lang === 'ar' ? 'نشط' : 'Live'}</span>
                       </span>
                     )}
                   </span>
-                  <span className="font-mono font-bold text-[#e8e8f0]">
+                  <span className="font-mono font-bold text-[#e8e8f0] whitespace-nowrap shrink-0 tabular-nums">
                     {isPomoRunning && pomoMode === 'focus'
                       ? `${todayMinutes}m ${totalTodaySeconds % 60}s / ${dailyGoal} min`
                       : `${todayMinutes} / ${dailyGoal} min`}
@@ -1054,35 +1506,45 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 </div>
                 <div className="w-full bg-[#1c1c3a] rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-teal-400 h-2 rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_rgba(45,212,191,0.5)]"
-                    style={{ width: `${dailyGoalPct}%` }}
+                    className="h-2 rounded-full transition-all duration-300 ease-out"
+                    style={{
+                      width: `${dailyGoalPct}%`,
+                      backgroundColor: dailyGoalPct >= 100 ? '#22c55e' : 'var(--primary)',
+                    }}
                   />
                 </div>
               </div>
 
               <div>
-                <div className="flex items-center justify-between text-xs mb-1">
-                  <span className="text-[#8888a8]">
-                    {t('weeklyGoal', lang)} ({weeklyGoal} {t('minutes', lang)})
+                <div className="flex items-center justify-between gap-2 text-xs mb-1">
+                  <span className="text-[#8888a8] truncate min-w-0">
+                    {isExpanded
+                      ? `${t('weeklyGoal', lang)} (${weeklyGoal} ${t('minutes', lang)})`
+                      : lang === 'ar'
+                      ? 'الهدف الأسبوعي'
+                      : 'Weekly Goal'}
                   </span>
-                  <span className="font-mono font-bold text-[#e8e8f0]">
+                  <span className="font-mono font-bold text-[#e8e8f0] whitespace-nowrap shrink-0 tabular-nums">
                     {weekTotalMinutes} / {weeklyGoal} min
                   </span>
                 </div>
                 <div className="w-full bg-[#1c1c3a] rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
-                    style={{ width: `${weeklyGoalPct}%` }}
+                    className="h-2 rounded-full transition-all duration-500"
+                    style={{
+                      width: `${weeklyGoalPct}%`,
+                      backgroundColor: weeklyGoalPct >= 100 ? '#22c55e' : 'var(--primary)',
+                    }}
                   />
                 </div>
               </div>
 
               {/* Lifetime Study Time - Indefinite counter without progress bar */}
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-[#8888a8]">
+              <div className="flex items-center justify-between gap-2 text-xs pt-1 pe-4">
+                <span className="text-[#8888a8] truncate min-w-0">
                   {lang === 'ar' ? 'الوقت الإجمالي للدراسة مدى الحياة' : 'Lifetime Study Time'}
                 </span>
-                <span className="font-mono font-bold text-[#e8e8f0]">
+                <span className="font-mono font-bold text-[#e8e8f0] whitespace-nowrap shrink-0 tabular-nums">
                   {formatLifetimeStudyTime(totalLifetimeSeconds)}
                 </span>
               </div>
@@ -1095,7 +1557,10 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       {Math.max(0, Math.ceil((dailyGoalSeconds - totalTodaySeconds) / 60))} min
                     </strong>
                   </span>
-                  <span className="font-semibold text-emerald-300">
+                  <span
+                    className="font-semibold"
+                    style={{ color: dailyGoalPct >= 100 ? '#22c55e' : 'var(--primary)' }}
+                  >
                     {dailyGoalPct >= 100
                       ? lang === 'ar'
                         ? 'مكتمل بنجاح!'
@@ -1118,13 +1583,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       case 'streak':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
-                  <Flame className={`w-4 h-4 ${streakInfo.activeToday ? 'text-rose-500 animate-pulse' : 'text-[#8888a8]'}`} />
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
+                  <Flame className={`w-4 h-4 ${streakInfo.activeToday ? 'text-rose-500' : 'text-[#8888a8]'}`} />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetStreak', lang)}
                 </h3>
               </div>
@@ -1138,31 +1603,30 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={onOpenStreakModal}
                   title={t('calTitle', lang)}
                   aria-label={t('calTitle', lang)}
-                  className="w-8 h-8 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/50 hover:bg-[#242448] flex items-center justify-center text-emerald-400 hover:text-emerald-300 transition-colors shadow-xs"
+                  className={`${extraBtnSize} rounded-lg hover:bg-[#1c1c3a] flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] transition-colors`}
                 >
                   <Calendar className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
 
-            <div className="flex items-center gap-4 py-2">
-              <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 transition-all ${
-                streakInfo.activeToday
-                  ? 'bg-rose-500/15 border-rose-500/30 shadow-[0_0_12px_rgba(244,63,94,0.25)]'
-                  : 'bg-[#1c1c3a] border-[#2a2a4a]'
-              }`}>
-                <Flame className={`w-6 h-6 ${streakInfo.activeToday ? 'text-rose-500 animate-bounce' : 'text-[#8888a8]'}`} />
+            <div className="py-2 my-auto space-y-1.5">
+              <div className="flex items-baseline gap-2">
+                <span className="text-2xl font-bold font-mono text-[#e8e8f0] tabular-nums">
+                  {streakInfo.currentStreak}
+                </span>
+                <span className="text-sm font-semibold text-[#8888a8]">
+                  {t('streakDays', lang)}
+                </span>
+                {streakInfo.activeToday && (
+                  <Flame className="w-4 h-4 text-rose-500 fill-rose-500 ms-auto shrink-0" />
+                )}
               </div>
-              <div>
-                <div className="text-xl font-extrabold text-[#e8e8f0]">
-                  {streakInfo.currentStreak} {t('streakDays', lang)}
-                </div>
-                <p className="text-xs text-[#8888a8]">
-                  {streakInfo.activeToday
-                    ? t('streakActiveToday', lang)
-                    : t('streakInactive', lang)}
-                </p>
-              </div>
+              <p className="text-xs text-[#8888a8] leading-relaxed">
+                {streakInfo.activeToday
+                  ? t('streakActiveToday', lang)
+                  : t('streakInactive', lang)}
+              </p>
             </div>
 
             {isExpanded && (
@@ -1191,14 +1655,14 @@ export const Dashboard: React.FC<DashboardProps> = ({
       case 'weeklyActivity':
       case 'activity':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <TrendingUp className="w-4 h-4 text-emerald-400" />
                 </div>
                 <div className="min-w-0">
-                  <h3 className="font-extrabold text-sm text-[#e8e8f0] truncate">
+                  <h3 className={titleClass}>
                     {t('widgetActivity', lang)}
                   </h3>
                   <div className="text-[11px] font-bold text-emerald-400 truncate">
@@ -1209,49 +1673,60 @@ export const Dashboard: React.FC<DashboardProps> = ({
               {renderWidgetHeaderControls(w.id, w.size, index, dragHandleProps)}
             </div>
 
-            <div className="grid grid-cols-7 gap-2 pt-2">
-              {(() => {
-                const targetMax = Math.max(
-                  dailyGoal,
-                  ...weekActivity.map((d) =>
-                    d.isToday ? d.minutes + activeFocusSeconds / 60 : d.minutes
-                  )
-                );
-                return weekActivity.map((day) => {
-                  const isToday = day.isToday;
-                  const effectiveMinutes = isToday
-                    ? day.minutes + activeFocusSeconds / 60
-                    : day.minutes;
-                  const barPct =
-                    effectiveMinutes > 0
-                      ? Math.min(100, Math.round((effectiveMinutes / targetMax) * 100))
-                      : 0;
+            <div className={`grid grid-cols-7 ${isQuarter ? 'gap-1' : 'gap-2'} pt-2`}>
+              {weekActivity.map((day) => {
+                const isToday = day.isToday;
+                const effectiveMinutes = isToday
+                  ? day.minutes + activeFocusSeconds / 60
+                  : day.minutes;
+                const isGoalAchieved = dailyGoal > 0 && effectiveMinutes >= dailyGoal;
+                const barPct =
+                  effectiveMinutes > 0
+                    ? Math.min(100, Math.round((effectiveMinutes / Math.max(1, dailyGoal)) * 100))
+                    : 0;
 
-                  return (
+                return (
+                  <div
+                    key={day.dateKey}
+                    title={
+                      isGoalAchieved
+                        ? `${Math.round(effectiveMinutes)} / ${dailyGoal} min · ${
+                            lang === 'ar' ? 'تم تحقيق الهدف' : 'Goal achieved'
+                          }`
+                        : `${Math.round(effectiveMinutes)} / ${dailyGoal} min`
+                    }
+                    className="flex flex-col items-center gap-1.5"
+                  >
                     <div
-                      key={day.dateKey}
-                      title={`${Math.round(effectiveMinutes)} / ${dailyGoal} min`}
-                      className="flex flex-col items-center gap-1.5"
+                      className={`w-full bg-[#1c1c3a] rounded-xl h-20 flex flex-col justify-end p-1 border transition-colors ${
+                        isGoalAchieved ? 'border-[#22c55e]/50' : 'border-[#2a2a4a]/40'
+                      }`}
                     >
-                      <div className="w-full bg-[#1c1c3a] rounded-xl h-20 flex flex-col justify-end p-1 border border-[#2a2a4a]/40">
-                        {effectiveMinutes > 0 ? (
-                          <div
-                            style={{ height: `${Math.max(4, barPct)}%` }}
-                            className="w-full rounded-lg bg-gradient-to-t from-emerald-600 to-teal-400 shadow-sm transition-all duration-300"
-                          />
-                        ) : null}
-                      </div>
-                      <span
-                        className={`text-[10px] font-bold ${
-                          isToday ? 'text-emerald-400' : 'text-[#8888a8]'
-                        }`}
-                      >
-                        {day.dayLabel}
-                      </span>
+                      {effectiveMinutes > 0 ? (
+                        <div
+                          style={{
+                            height: `${isGoalAchieved ? 100 : Math.max(4, barPct)}%`,
+                            backgroundColor: isGoalAchieved ? '#22c55e' : 'var(--primary)',
+                          }}
+                          className="w-full rounded-lg shadow-sm transition-all duration-300"
+                        />
+                      ) : null}
                     </div>
-                  );
-                });
-              })()}
+                    <span
+                      style={isGoalAchieved ? { color: '#22c55e' } : undefined}
+                      className={`${isQuarter ? 'text-[9px]' : 'text-[10px]'} font-bold ${
+                        isGoalAchieved
+                          ? ''
+                          : isToday
+                          ? 'text-emerald-400'
+                          : 'text-[#8888a8]'
+                      }`}
+                    >
+                      {day.dayLabel}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
             {isExpanded && (
@@ -1283,13 +1758,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const displaySessions = isExpanded ? todaySessions.slice(0, 6) : todaySessions.slice(0, 3);
 
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Clock className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetSessionsToday', lang)}
                 </h3>
               </div>
@@ -1298,9 +1773,11 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 w.size,
                 index,
                 dragHandleProps,
-                <span className="text-xs text-[#8888a8]">
-                  {todaySessions.length} {t('sessions', lang)}
-                </span>
+                !isQuarter ? (
+                  <span className="text-xs text-[#8888a8] whitespace-nowrap">
+                    {todaySessions.length} {t('sessions', lang)}
+                  </span>
+                ) : undefined
               )}
             </div>
 
@@ -1341,13 +1818,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const displayExams = isExpanded ? allExams.slice(0, 6) : allExams.slice(0, 3);
 
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Calendar className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetExams', lang)}
                 </h3>
               </div>
@@ -1361,7 +1838,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={onOpenAddExam}
                   title={t('addExam', lang)}
                   aria-label={t('addExam', lang)}
-                  className="w-8 h-8 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/50 hover:bg-[#242448] flex items-center justify-center text-emerald-400 hover:text-emerald-300 transition-colors shadow-xs"
+                  className={`${extraBtnSize} rounded-lg hover:bg-[#1c1c3a] flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] transition-colors`}
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -1377,6 +1854,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {displayExams.map((ex) => (
                   <div
                     key={ex.id}
+                    data-no-dnd="true"
                     onClick={() => onSelectCategory(ex.categoryId, 'exams')}
                     className="flex items-center justify-between p-2.5 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a]/40 hover:border-emerald-500/30 cursor-pointer text-xs"
                   >
@@ -1409,13 +1887,13 @@ export const Dashboard: React.FC<DashboardProps> = ({
         const displayTasks = isExpanded ? allTasks.slice(0, 6) : allTasks.slice(0, 3);
 
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <CheckSquare className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetTasks', lang)}
                 </h3>
               </div>
@@ -1429,7 +1907,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                   onClick={onOpenAddTask}
                   title={t('addTask', lang)}
                   aria-label={t('addTask', lang)}
-                  className="w-8 h-8 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/50 hover:bg-[#242448] flex items-center justify-center text-emerald-400 hover:text-emerald-300 transition-colors shadow-xs"
+                  className={`${extraBtnSize} rounded-lg hover:bg-[#1c1c3a] flex items-center justify-center text-[#8888a8] hover:text-[#e8e8f0] transition-colors`}
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
@@ -1445,6 +1923,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                 {displayTasks.map((tk) => (
                   <div
                     key={tk.id}
+                    data-no-dnd="true"
                     onClick={() => onSelectCategory(tk.categoryId, 'tasks')}
                     className="flex items-center justify-between p-2.5 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a]/40 hover:border-emerald-500/30 cursor-pointer text-xs"
                   >
@@ -1475,41 +1954,45 @@ export const Dashboard: React.FC<DashboardProps> = ({
 
       case 'grades':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Award className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetGrades', lang)}
                 </h3>
               </div>
               {renderWidgetHeaderControls(w.id, w.size, index, dragHandleProps)}
             </div>
 
-            <div className="flex items-center gap-4 py-2">
-              <div className="w-14 h-14 rounded-2xl bg-emerald-600/10 border border-emerald-500/20 flex flex-col items-center justify-center shrink-0">
-                <span className="text-lg font-mono font-extrabold text-emerald-400">
+            <div className="py-2 my-auto space-y-1">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-2xl font-bold font-mono text-emerald-400 tabular-nums">
                   {gpaInfo.gpa}%
                 </span>
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[#e8e8f0]">
+                <span className="text-xs font-semibold text-[#e8e8f0]">
                   {t('overallGpa', lang)}: {gpaInfo.letter}
-                </div>
-                <p className="text-[11px] text-[#8888a8] mt-1">
-                  Weighted across all recorded assessments.
-                </p>
+                </span>
               </div>
+              <p className="text-[11px] text-[#8888a8] leading-snug">
+                {allGrades.length} {lang === 'ar' ? 'تقييمات مسجلة' : 'assessments'}
+              </p>
             </div>
 
-            {isExpanded && (
-              <div className="pt-2 border-t border-[#2a2a4a]/40 text-xs text-[#8888a8] flex items-center justify-between">
-                <span>{allGrades.length} {lang === 'ar' ? 'تقييمات مسجلة' : 'assessments recorded'}</span>
-                <span className="text-emerald-300 font-semibold">{gpaInfo.gpa >= 85 ? 'Excellent Standing' : 'Good Progress'}</span>
-              </div>
-            )}
+            <div className={`mt-3 pt-3 border-t border-[#2a2a4a]/40 text-xs text-[#8888a8] flex items-center justify-between gap-2 ${isQuarter ? 'pe-4' : ''}`}>
+              <span>{lang === 'ar' ? 'متوسط مرجّح' : 'Weighted GPA'}</span>
+              <span className="text-emerald-300 font-semibold">
+                {allGrades.length === 0
+                  ? lang === 'ar'
+                    ? 'لا توجد درجات'
+                    : 'No grades yet'
+                  : gpaInfo.gpa >= 85
+                  ? 'Excellent Standing'
+                  : 'Good Progress'}
+              </span>
+            </div>
 
             <CardResizeHandle
               widgetId={w.id}
@@ -1524,49 +2007,46 @@ export const Dashboard: React.FC<DashboardProps> = ({
       case 'quizzes':
       case 'quizAvg':
         return (
-          <div className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+          <div className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}>
+            <div className="flex items-center justify-between gap-2 mb-4">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Sparkles className="w-4 h-4 text-teal-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetQuizAvg', lang)}
                 </h3>
               </div>
-              {renderWidgetHeaderControls(
-                w.id,
-                w.size,
-                index,
-                dragHandleProps,
-                <span className="text-xs text-[#8888a8]">
-                  {allQuizzes.length} {lang === 'ar' ? 'كويزات' : 'quizzes'}
-                </span>
-              )}
+              {renderWidgetHeaderControls(w.id, w.size, index, dragHandleProps)}
             </div>
 
-            <div className="flex items-center gap-4 py-2">
-              <div className="w-14 h-14 rounded-2xl bg-teal-500/10 border border-teal-500/20 flex flex-col items-center justify-center shrink-0">
-                <span className="text-xl font-mono font-extrabold text-teal-400">
+            <div className="py-2 my-auto space-y-1">
+              <div className="flex items-baseline gap-2.5">
+                <span className="text-2xl font-bold font-mono text-teal-400 tabular-nums">
                   {avgQuizScore}%
                 </span>
-              </div>
-              <div>
-                <div className="text-xs font-bold text-[#e8e8f0]">
+                <span className="text-xs font-semibold text-[#e8e8f0]">
                   {t('quizAvg', lang)}
-                </div>
-                <p className="text-[11px] text-[#8888a8] mt-1">
-                  Accuracy score from completed quizzes.
-                </p>
+                </span>
               </div>
+              <p className="text-[11px] text-[#8888a8] leading-snug">
+                {allQuizzes.length} {lang === 'ar' ? 'كويزات' : 'quizzes'} · {scoredQuizzes.length}{' '}
+                {lang === 'ar' ? 'مكتمل' : 'scored'}
+              </p>
             </div>
 
-            {isExpanded && (
-              <div className="pt-2 border-t border-[#2a2a4a]/40 text-xs text-[#8888a8] flex items-center justify-between">
-                <span>{scoredQuizzes.length} {lang === 'ar' ? 'اختبارات مكتملة' : 'completed quiz tests'}</span>
-                <span className="text-teal-400 font-bold">{avgQuizScore >= 80 ? 'Mastery Level' : 'Developing'}</span>
-              </div>
-            )}
+            <div className={`mt-3 pt-3 border-t border-[#2a2a4a]/40 text-xs text-[#8888a8] flex items-center justify-between gap-2 ${isQuarter ? 'pe-4' : ''}`}>
+              <span>{scoredQuizzes.length} {lang === 'ar' ? 'مكتمل' : 'scored'}</span>
+              <span className="text-teal-400 font-bold">
+                {scoredQuizzes.length === 0
+                  ? lang === 'ar'
+                    ? 'جاهز للبدء'
+                    : 'Ready'
+                  : avgQuizScore >= 80
+                  ? 'Mastery Level'
+                  : 'Developing'}
+              </span>
+            </div>
 
             <CardResizeHandle
               widgetId={w.id}
@@ -1582,47 +2062,47 @@ export const Dashboard: React.FC<DashboardProps> = ({
         return (
           <div
             data-tour="quick-actions"
-            className="bg-[#12122a] border border-[#2a2a4a] rounded-2xl p-5 shadow-sm transition-all hover:border-emerald-500/30 flex flex-col justify-between h-full relative"
+            className={`bg-[#12122a] border border-[#2a2a4a] rounded-xl ${cardPad} transition-colors hover:border-[#3a3a5a] flex flex-col justify-between h-full relative min-w-0`}
           >
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] flex items-center justify-center shrink-0 shadow-xs">
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="shrink-0 flex items-center justify-center text-[#8888a8]">
                   <Sliders className="w-4 h-4 text-emerald-400" />
                 </div>
-                <h3 className="font-extrabold text-sm text-[#e8e8f0]">
+                <h3 className={titleClass}>
                   {t('widgetActions', lang)}
                 </h3>
               </div>
               {renderWidgetHeaderControls(w.id, w.size, index, dragHandleProps)}
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className={`grid ${isExpanded ? 'grid-cols-2 sm:grid-cols-4' : isQuarter ? 'grid-cols-1' : 'grid-cols-2'} ${isQuarter ? 'gap-1.5' : 'gap-2'}`}>
               <button
                 onClick={onOpenNewCategory}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#e8e8f0] hover:text-emerald-300 transition-all hover:-translate-y-0.5 active:scale-95"
+                className={`flex items-center justify-center gap-1.5 ${isQuarter ? 'px-2.5 py-1.5' : 'p-2.5'} rounded-lg bg-[#1c1c3a] border border-[#2a2a4a] hover:bg-[#242448] text-xs font-medium text-[#e8e8f0] transition-colors min-w-0`}
               >
-                <Plus className="w-4 h-4 text-emerald-400" />
-                <span>{t('newCategory', lang)}</span>
+                <Plus className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">{t('newCategory', lang)}</span>
               </button>
               <button
                 onClick={onOpenNewDeck}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#e8e8f0] hover:text-emerald-300 transition-all hover:-translate-y-0.5 active:scale-95"
+                className={`flex items-center justify-center gap-1.5 ${isQuarter ? 'px-2.5 py-1.5' : 'p-2.5'} rounded-lg bg-[#1c1c3a] border border-[#2a2a4a] hover:bg-[#242448] text-xs font-medium text-[#e8e8f0] transition-colors min-w-0`}
               >
-                <BookOpen className="w-4 h-4 text-emerald-400" />
-                <span>{t('newDeck', lang)}</span>
+                <BookOpen className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">{t('newDeck', lang)}</span>
               </button>
               <button
                 onClick={onOpenGenerateCards}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#e8e8f0] hover:text-emerald-300 transition-all hover:-translate-y-0.5 active:scale-95"
+                className={`flex items-center justify-center gap-1.5 ${isQuarter ? 'px-2.5 py-1.5' : 'p-2.5'} rounded-lg bg-[#1c1c3a] border border-[#2a2a4a] hover:bg-[#242448] text-xs font-medium text-[#e8e8f0] transition-colors min-w-0`}
               >
-                <Sparkles className="w-4 h-4 text-teal-400" />
-                <span>{t('generateAI', lang)}</span>
+                <Sparkles className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                <span className="truncate">{t('generateAI', lang)}</span>
               </button>
               <button
                 onClick={onOpenFullscreenPomo}
-                className="flex items-center justify-center gap-2 p-3 rounded-xl bg-emerald-600/20 border border-emerald-500/30 hover:bg-emerald-600/30 text-xs font-bold text-emerald-300 transition-all hover:-translate-y-0.5 active:scale-95"
+                className={`flex items-center justify-center gap-1.5 ${isQuarter ? 'px-2.5 py-1.5' : 'p-2.5'} rounded-lg bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold text-white transition-colors min-w-0`}
               >
-                <Play className="w-4 h-4 fill-emerald-300" />
-                <span>{t('start', lang)}</span>
+                <Play className="w-3.5 h-3.5 fill-white shrink-0" />
+                <span className="truncate">{t('start', lang)}</span>
               </button>
             </div>
 
@@ -1642,16 +2122,15 @@ export const Dashboard: React.FC<DashboardProps> = ({
   };
 
   return (
-    <div className="space-y-6">
-      {/* Top Scope & Timeline Navigation Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#12122a] border border-[#2a2a4a] p-3.5 rounded-2xl shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-sm shadow-emerald-500/50" />
-          <span className="text-xs font-bold text-[#e8e8f0]">
+    <div className="space-y-5">
+      {/* Top Overview Toolbar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 px-0.5">
+        <div className="flex items-baseline gap-2.5">
+          <h2 className="text-base font-semibold tracking-tight text-[#e8e8f0]">
             {t('scopeAll', lang)}
-          </span>
+          </h2>
           <span className="text-xs text-[#8888a8]">
-            ({state.categories.length} {t('categories', lang)})
+            {state.categories.length} {t('categories', lang)}
           </span>
         </div>
 
@@ -1659,60 +2138,53 @@ export const Dashboard: React.FC<DashboardProps> = ({
           {onNavigateToTimeline && (
             <button
               onClick={onNavigateToTimeline}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600/15 border border-emerald-500/30 hover:bg-emerald-600/25 text-xs font-bold text-emerald-300 transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#12122a] border border-[#2a2a4a] hover:bg-[#1c1c3a] text-xs font-medium text-[#e8e8f0] transition-colors"
             >
-              <Calendar className="w-3.5 h-3.5 text-emerald-400" />
+              <Calendar className="w-3.5 h-3.5 text-[#8888a8]" />
               <span>{lang === 'ar' ? 'الجدول الدراسي' : 'Timetable'}</span>
             </button>
           )}
 
           <button
             onClick={onOpenCustomize}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#1c1c3a] border border-[#2a2a4a] hover:border-emerald-500/40 text-xs font-bold text-[#8888a8] hover:text-[#e8e8f0] transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#12122a] border border-[#2a2a4a] hover:bg-[#1c1c3a] text-xs font-medium text-[#e8e8f0] transition-colors"
           >
-            <Sliders className="w-3.5 h-3.5 text-emerald-400" />
+            <Sliders className="w-3.5 h-3.5 text-[#8888a8]" />
             <span>{t('customizeDashboard', lang)}</span>
           </button>
         </div>
       </div>
 
-      {/* Grid of Draggable Widgets using dnd-kit Sortable */}
+      {/* Grid of Draggable Widgets (Android OS-style free drag, auto-scroll, and live slot reflow) */}
       <DndContext
         sensors={sensors}
-        collisionDetection={customCollisionDetection}
-        measuring={{
-          droppable: {
-            strategy: MeasuringStrategy.Always,
-          },
-        }}
         onDragStart={handleDragStart}
-        onDragOver={handleDragOver}
+        onDragMove={handleDragMove}
         onDragEnd={handleDragEnd}
         onDragCancel={handleDragCancel}
-        autoScroll={false}
+        autoScroll={{
+          threshold: { x: 0.1, y: 0.16 },
+          acceleration: 14,
+        }}
       >
-        <SortableContext
-          items={visibleWidgets.map((w) => w.id)}
-          strategy={rectSortingStrategy}
-        >
-          <div ref={gridRef} className="grid grid-cols-12 gap-5">
-            {visibleWidgets.map((w, index) => (
-              <SortableWidgetWrapper
-                key={w.id}
-                id={w.id}
-                sizeClass={getSizeClass(w.size)}
-                isCurrentlyDragged={w.id === activeId}
-                isOverTarget={Boolean(activeId && overId === w.id && activeId !== w.id)}
-              >
-                {(dragHandleProps) => renderWidgetContent(w, index, dragHandleProps)}
-              </SortableWidgetWrapper>
-            ))}
-          </div>
-        </SortableContext>
+        <div ref={gridRef} className="grid grid-cols-12 gap-5 select-none">
+          {displayedVisibleWidgets.map((w, index) => (
+            <DraggableWidgetWrapper
+              key={w.id}
+              id={w.id}
+              sizeClass={getSizeClass(w.size)}
+              title={getWidgetTitle(w.id)}
+              lang={lang}
+              isCurrentlyDragged={w.id === activeId}
+            >
+              {(dragHandleProps) => renderWidgetContent(w, index, dragHandleProps)}
+            </DraggableWidgetWrapper>
+          ))}
+        </div>
 
         <DragOverlay
           dropAnimation={{
-            duration: 220,
+            duration: 200,
             easing: 'cubic-bezier(0.2, 0, 0, 1)',
           }}
         >
@@ -1727,7 +2199,7 @@ export const Dashboard: React.FC<DashboardProps> = ({
                       ? { width: draggedDimensions.width, height: draggedDimensions.height }
                       : undefined
                   }
-                  className="scale-[1.02] shadow-2xl ring-2 ring-emerald-500 rounded-2xl pointer-events-none cursor-grabbing opacity-95 bg-[#12122a]"
+                  className="scale-[1.015] shadow-xl ring-1 ring-emerald-500/60 rounded-xl pointer-events-none cursor-grabbing opacity-95 bg-[#12122a]"
                 >
                   {renderWidgetContent(activeWidget, 0, {})}
                 </div>
